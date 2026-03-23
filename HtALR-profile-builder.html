@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HtALR Profile Builder</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --surface: #141414;
+    --surface2: #1a1a1a;
+    --border: #2a2a2a;
+    --border-active: #3a3a3a;
+    --accent: #00ff88;
+    --accent2: #00ccff;
+    --accent3: #ff6b35;
+    --text: #e8e8e8;
+    --text-muted: #666;
+    --text-dim: #444;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Space Grotesk', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .shell {
+    position: relative;
+    z-index: 1;
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* Header */
+  .header {
+    margin-bottom: 48px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 24px;
+  }
+
+  .header-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .prompt-char {
+    font-family: var(--mono);
+    color: var(--accent);
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  .header h1 {
+    font-family: var(--mono);
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+
+  .header h1 span { color: var(--accent); }
+
+  .header-sub {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-left: 30px;
+  }
+
+  /* Progress bar */
+  .progress-wrap {
+    margin-bottom: 40px;
+  }
+
+  .progress-meta {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+
+  .progress-track {
+    height: 2px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 2px;
+    transition: width 0.4s ease;
+    width: 0%;
+  }
+
+  /* Tier labels */
+  .tier-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    color: var(--text-muted);
+  }
+
+  .tier-label.t1 { border-color: var(--accent); color: var(--accent); }
+  .tier-label.t2 { border-color: var(--accent2); color: var(--accent2); }
+
+  .tier-label::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  /* Question blocks */
+  .q-block {
+    margin-bottom: 28px;
+    padding: 20px 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    transition: border-color 0.2s;
+  }
+
+  .q-block:focus-within {
+    border-color: var(--border-active);
+  }
+
+  .q-block.answered {
+    border-color: rgba(0,255,136,0.2);
+  }
+
+  .q-number {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    letter-spacing: 1px;
+  }
+
+  .q-text {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+
+  /* Options grid */
+  .options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .opt {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    transition: all 0.15s;
+    user-select: none;
+  }
+
+  .opt:hover {
+    border-color: var(--border-active);
+    color: var(--text);
+  }
+
+  .opt.selected {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,255,136,0.05);
+  }
+
+  .opt input { display: none; }
+
+  .opt-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: 1px solid currentColor;
+    flex-shrink: 0;
+    transition: background 0.15s;
+  }
+
+  .opt.selected .opt-dot {
+    background: var(--accent);
+  }
+
+  /* Multi-select variant */
+  .opt.multi.selected {
+    border-color: var(--accent2);
+    color: var(--accent2);
+    background: rgba(0,204,255,0.05);
+  }
+
+  .opt.multi.selected .opt-dot {
+    background: var(--accent2);
+    border-color: var(--accent2);
+    border-radius: 2px;
+  }
+
+  /* Custom input */
+  .custom-wrap {
+    margin-top: 10px;
+  }
+
+  .custom-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    letter-spacing: 1px;
+  }
+
+  .custom-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 8px 12px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+    resize: vertical;
+    min-height: 36px;
+  }
+
+  .custom-input:focus {
+    border-color: var(--border-active);
+  }
+
+  .custom-input::placeholder { color: var(--text-dim); }
+
+  /* Tier 2 gate */
+  .tier2-gate {
+    margin: 40px 0 32px;
+    padding: 24px;
+    border: 1px dashed var(--border);
+    border-radius: 4px;
+    text-align: center;
+  }
+
+  .tier2-gate.unlocked {
+    border-style: solid;
+    border-color: rgba(0,204,255,0.3);
+    background: rgba(0,204,255,0.03);
+  }
+
+  .gate-title {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+
+  .gate-title.unlocked { color: var(--accent2); }
+
+  .gate-sub {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .gate-sub.unlocked { color: var(--text-muted); }
+
+  /* Tier 2 section — hidden until unlocked */
+  #tier2-section {
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: opacity 0.5s ease, max-height 0.8s ease;
+  }
+
+  #tier2-section.visible {
+    opacity: 1;
+    max-height: 9999px;
+  }
+
+  /* Generate button */
+  .generate-wrap {
+    margin-top: 40px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .btn-generate {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    padding: 12px 28px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+
+  .btn-generate:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn-generate:active { transform: translateY(0); }
+  .btn-generate:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+
+  .btn-secondary {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+  }
+
+  .btn-secondary:hover { color: var(--text); border-color: var(--border-active); }
+
+  /* Output */
+  #output-section {
+    margin-top: 48px;
+    display: none;
+  }
+
+  #output-section.visible { display: block; }
+
+  .output-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .output-title {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+    letter-spacing: 1px;
+  }
+
+  .btn-copy {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-copy:hover { color: var(--accent); border-color: var(--accent); }
+  .btn-copy.copied { color: var(--accent); border-color: var(--accent); }
+
+  .output-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 24px;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.8;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  /* Divider */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 36px 0;
+  }
+
+  /* Answered check */
+  .q-block.answered .q-number::after {
+    content: ' ✓';
+    color: var(--accent);
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="header">
+    <div class="header-top">
+      <span class="prompt-char">$</span>
+      <h1>Ht<span>ALR</span> Profile Builder</h1>
+    </div>
+    <div class="header-sub">// human to agentic language rosetta — session profile generator</div>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-meta">
+      <span id="progress-label">0 / 14 answered</span>
+      <span id="progress-pct">0%</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progress-fill"></div>
+    </div>
+  </div>
+
+  <!-- TIER 1 -->
+  <div class="tier-label t1">Tier 1 — Quick Profile</div>
+
+  <div class="q-block" id="q1">
+    <div class="q-number">Q01 // REGISTER</div>
+    <div class="q-text">How should the agent communicate with you?</div>
+    <div class="options" data-q="q1" data-type="single">
+      <label class="opt"><input type="radio" name="q1" value="Direct and brief"><span class="opt-dot"></span>Direct and brief</label>
+      <label class="opt"><input type="radio" name="q1" value="Casual and conversational"><span class="opt-dot"></span>Casual and conversational</label>
+      <label class="opt"><input type="radio" name="q1" value="Formal and precise"><span class="opt-dot"></span>Formal and precise</label>
+      <label class="opt"><input type="radio" name="q1" value="Collaborative — thinks out loud"><span class="opt-dot"></span>Collaborative — thinks out loud</label>
+      <label class="opt"><input type="radio" name="q1" value="Executive — decisions only"><span class="opt-dot"></span>Executive — decisions only</label>
+    </div>
+    <div class="custom-wrap">
+      <div class="custom-label">// CUSTOM OR PASTE SAMPLE TEXT</div>
+      <textarea class="custom-input" placeholder="Describe or paste a voice sample..." rows="2" data-q="q1-custom"></textarea>
+    </div>
+  </div>
+
+  <div class="q-block" id="q2">
+    <div class="q-number">Q02 // OUTPUT FORMAT</div>
+    <div class="q-text">What is your default output format?</div>
+    <div class="options" data-q="q2" data-type="single">
+      <label class="opt"><input type="radio" name="q2" value="Markdown"><span class="opt-dot"></span>Markdown</label>
+      <label class="opt"><input type="radio" name="q2" value="Plain prose"><span class="opt-dot"></span>Plain prose</label>
+      <label class="opt"><input type="radio" name="q2" value="Code only"><span class="opt-dot"></span>Code only</label>
+      <label class="opt"><input type="radio" name="q2" value="Structured data (JSON/YAML)"><span class="opt-dot"></span>Structured data (JSON/YAML)</label>
+      <label class="opt"><input type="radio" name="q2" value="Tables preferred"><span class="opt-dot"></span>Tables preferred</label>
+    </div>
+    <div class="custom-wrap">
+      <div class="custom-label">// CUSTOM FORMAT OR TEMPLATE</div>
+      <textarea class="custom-input" placeholder="Describe a specific format or paste a template..." rows="2" data-q="q2-custom"></textarea>
+    </div>
+  </div>
+
+  <div class="q-block" id="q3">
+    <div class="q-number">Q03 // AUTONOMY</div>
+    <div class="q-text">When a query is ambiguous, what should the agent do?</div>
+    <div class="options" data-q="q3" data-type="single">
+      <label class="opt"><input type="radio" name="q3" value="Ask before acting"><span class="opt-dot"></span>Ask before acting</label>
+      <label class="opt"><input type="radio" name="q3" value="Assume and flag assumptions"><span class="opt-dot"></span>Assume and flag assumptions</label>
+      <label class="opt"><input type="radio" name="q3" value="Commit and let me course-correct"><span class="opt-dot"></span>Commit and let me course-correct</label>
+      <label class="opt"><input type="radio" name="q3" value="Offer 2-3 interpretations first"><span class="opt-dot"></span>Offer 2-3 interpretations first</label>
+    </div>
+    <div class="custom-wrap">
+      <div class="custom-label">// CUSTOM AUTONOMY RULE</div>
+      <textarea class="custom-input" placeholder="Describe your preference..." rows="2" data-q="q3-custom"></textarea>
+    </div>
+  </div>
+
+  <!-- TIER 2 GATE -->
+  <div class="tier2-gate" id="tier2-gate">
+    <div class="gate-title" id="gate-title">// TIER 2 LOCKED — complete Tier 1 to unlock</div>
+    <div class="gate-sub" id="gate-sub">7 more questions covering explanation density, token optimisation, agent behaviour, and more</div>
+  </div>
+
+  <!-- TIER 2 -->
+  <div id="tier2-section">
+    <div class="tier-label t2">Tier 2 — Deep Profile</div>
+
+    <div class="q-block" id="q4">
+      <div class="q-number">Q04 // EXPLANATION DENSITY</div>
+      <div class="q-text">How much reasoning do you want to see?</div>
+      <div class="options" data-q="q4" data-type="single">
+        <label class="opt"><input type="radio" name="q4" value="Conclusion only"><span class="opt-dot"></span>Conclusion only</label>
+        <label class="opt"><input type="radio" name="q4" value="Conclusion + one-line rationale"><span class="opt-dot"></span>Conclusion + one-line rationale</label>
+        <label class="opt"><input type="radio" name="q4" value="Full working shown"><span class="opt-dot"></span>Full working shown</label>
+        <label class="opt"><input type="radio" name="q4" value="On-demand via trigger word"><span class="opt-dot"></span>On-demand via trigger word</label>
+      </div>
+      <div class="custom-wrap">
+        <div class="custom-label">// CUSTOM TRIGGER WORD (if on-demand)</div>
+        <textarea class="custom-input" placeholder="e.g. 'unpack', 'explain', 'why'..." rows="1" data-q="q4-custom"></textarea>
+      </div>
+    </div>
+
+    <div class="q-block" id="q5">
+      <div class="q-number">Q05 // TOKEN OPTIMISATION</div>
+      <div class="q-text">How compressed should responses be? (select all that apply)</div>
+      <div class="options" data-q="q5" data-type="multi">
+        <label class="opt multi"><input type="checkbox" name="q5" value="No preamble"><span class="opt-dot"></span>No preamble</label>
+        <label class="opt multi"><input type="checkbox" name="q5" value="No postamble"><span class="opt-dot"></span>No postamble</label>
+        <label class="opt multi"><input type="checkbox" name="q5" value="Trim hedges and qualifiers"><span class="opt-dot"></span>Trim hedges and qualifiers</label>
+        <label class="opt multi"><input type="checkbox" name="q5" value="Layered — summary first, detail on request"><span class="opt-dot"></span>Layered — summary first, detail on request</label>
+        <label class="opt multi"><input type="checkbox" name="q5" value="Single pass — no mid-response revision"><span class="opt-dot"></span>Single pass — no mid-response revision</label>
+        <label class="opt multi"><input type="checkbox" name="q5" value="Reference compression — shorthand for prior concepts"><span class="opt-dot"></span>Reference compression</label>
+      </div>
+      <div class="custom-wrap">
+        <div class="custom-label">// CUSTOM TOKEN RULE</div>
+        <textarea class="custom-input" placeholder="Any other compression preferences..." rows="1" data-q="q5-custom"></textarea>
+      </div>
+    </div>
+
+    <div class="q-block" id="q6">
+      <div class="q-number">Q06 // INFERENCE DEPTH</div>
+      <div class="q-text">How much should the agent read between the lines?</div>
+      <div class="options" data-q="q6" data-type="single">
+        <label class="opt"><input type="radio" name="q6" value="Literal — execute exactly what was asked"><span class="opt-dot"></span>Literal — exactly what was asked</label>
+        <label class="opt"><input type="radio" name="q6" value="Contextual — fill obvious gaps from context"><span class="opt-dot"></span>Contextual — fill obvious gaps</label>
+        <label class="opt"><input type="radio" name="q6" value="Inferential — optimise for inferred goal, not surface request"><span class="opt-dot"></span>Inferential — optimise for inferred goal</label>
+        <label class="opt"><input type="radio" name="q6" value="Anticipatory — surface what comes next unprompted"><span class="opt-dot"></span>Anticipatory — surface what comes next</label>
+      </div>
+      <div class="custom-wrap">
+        <div class="custom-label">// CUSTOM INFERENCE RULE</div>
+        <textarea class="custom-input" placeholder="Describe your preference..." rows="1" data-q="q6-custom"></textarea>
+      </div>
+    </div>
+
+    <div class="q-block" id="q7">
+      <div class="q-number">Q07 // SCOPE</div>
+      <div class="q-text">Should the agent stay inside the task or expand beyond it?</div>
+      <div class="options" data-q="q7" data-type="single">
+        <label class="opt"><input type="radio" name="q7" value="Scope-locked — stay inside what was asked"><span class="opt-dot"></span>Scope-locked — stay inside what was asked</label>
+        <label class="opt"><input type="radio" name="q7" value="Flag adjacent issues but don't act on them"><span class="opt-dot"></span>Flag adjacent issues, don't act</label>
+        <label class="opt"><input type="radio" name="q7" value="Anticipate — proactively surface related problems"><span class="opt-dot"></span>Anticipate — surface related problems</label>
+        <label class="opt"><input type="radio" name="q7" value="Goal-oriented — optimise for the underlying goal"><span class="opt-dot"></span>Goal-oriented — optimise for underlying goal</label>
+      </div>
+      <div class="custom-wrap">
+        <div class="custom-label">// CUSTOM SCOPE RULE</div>
+        <textarea class="custom-input" placeholder="..." rows="1" data-q="q7-custom"></textarea>
+      </div>
+    </div>
+
+    <div class="q-block" id="q8">
+      <div class="q-number">Q08 // ITERATION POSTURE</div>
+      <div class="q-text">How should the agent handle output options?</div>
+      <div class="options" data-q="q8" data-type="single">
+        <label class="opt"><input type="radio" name="q8" value="One strong output — commit and ship"><span class="opt-dot"></span>One strong output — commit and ship</label>
+        <label class="opt"><input type="radio" name="q8" value="Two variants — best pick + alternative"><span class="opt-dot"></span>Two variants — best pick + alternative</label>
+        <label class="opt"><input type="radio" name="q8" value="Three options — let me choose"><span class="opt-dot"></span>Three options — let me choose</label>
+        <label class="opt"><input type="radio" name="q8" value="Draft first, refine on feedback"><span class="opt-dot"></span>Draft first, refine on feedback</label>
+      </div>
+      <div class="custom-wrap">
+        <div class="custom-label">// CUSTOM ITERATION PREFERENCE</div>
+        <textarea class="custom-input" placeholder="..." rows="1" data-q="q8-custom"></textarea>
+      </div>
+    </div>
+
+    <div class="q-block" id="q9">
+      <div class="q-number">Q09 // CONSTRAINTS</div>
+      <div class="q-text">Things the agent should never do in this profile. (select all that apply)</div>
+      <div class="options" data-q="q9" data-type="multi">
+        <label class="opt multi"><input type="checkbox" name="q9" value="Never use bullet points for prose"><span class="opt-dot"></span>Never bullet points in prose</label>
+        <label class="opt multi"><input type="checkbox" name="q9" value="Never use encouragement phrases"><span class="opt-dot"></span>Never encouragement phrases</label>
+        <label class="opt multi"><input type="checkbox" name="q9" value="Never add unrequested suggestions"><span class="opt-dot"></span>Never unrequested suggestions</label>
+        <label class="opt multi"><input type="checkbox" name="q9" value="Never restate the question before answering"><span class="opt-dot"></span>Never restate the question</label>
+        <label class="opt multi"><input type="checkbox" name="q9" value="Never use passive voice"><span class="opt-dot"></span>Never passive voice</label>
+        <label class="opt multi"><input type="checkbox" name="q9" value="Never add a closing summary"><span class="opt-dot"></span>Never closing summary</label>
+      </div>
+      <div class="custom-wrap">
+        <div class="custom-label">// CUSTOM CONSTRAINTS</div>
+        <textarea class="custom-input" placeholder="List anything that should be locked off..." rows="2" data-q="q9-custom"></textarea>
+      </div>
+    </div>
+
+    <div class="q-block" id="q10">
+      <div class="q-number">Q10 // OPTIMISED FOR</div>
+      <div class="q-text">Where does output primarily land? (select all that apply)</div>
+      <div class="options" data-q="q10" data-type="multi">
+        <label class="opt multi"><input type="checkbox" name="q10" value="Obsidian"><span class="opt-dot"></span>Obsidian</label>
+        <label class="opt multi"><input type="checkbox" name="q10" value="Notion"><span class="opt-dot"></span>Notion</label>
+        <label class="opt multi"><input type="checkbox" name="q10" value="GitHub / IDEs"><span class="opt-dot"></span>GitHub / IDEs</label>
+        <label class="opt multi"><input type="checkbox" name="q10" value="Terminal"><span class="opt-dot"></span>Terminal</label>
+        <label class="opt multi"><input type="checkbox" name="q10" value="Google Docs"><span class="opt-dot"></span>Google Docs</label>
+        <label class="opt multi"><input type="checkbox" name="q10" value="Slack / messaging"><span class="opt-dot"></span>Slack / messaging</label>
+        <label class="opt multi"><input type="checkbox" name="q10" value="Email"><span class="opt-dot"></span>Email</label>
+      </div>
+      <div class="custom-wrap">
+        <div class="custom-label">// OTHER TOOLS</div>
+        <textarea class="custom-input" placeholder="Any other tools or environments..." rows="1" data-q="q10-custom"></textarea>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="q-block" id="q11">
+      <div class="q-number">Q11 // PERSONA MODE</div>
+      <div class="q-text">Do you want the agent to mirror a specific voice or persona?</div>
+      <div class="options" data-q="q11" data-type="single">
+        <label class="opt"><input type="radio" name="q11" value="No persona — default register"><span class="opt-dot"></span>No persona — default register</label>
+        <label class="opt"><input type="radio" name="q11" value="Mirror my own writing style"><span class="opt-dot"></span>Mirror my writing style</label>
+        <label class="opt"><input type="radio" name="q11" value="Custom persona (describe below)"><span class="opt-dot"></span>Custom persona (describe below)</label>
+      </div>
+      <div class="custom-wrap">
+        <div class="custom-label">// PASTE SAMPLE TEXT OR DESCRIBE THE PERSONA</div>
+        <textarea class="custom-input" placeholder="Paste a writing sample or describe the voice..." rows="3" data-q="q11-custom"></textarea>
+      </div>
+    </div>
+
+    <div class="q-block" id="q12">
+      <div class="q-number">Q12 // TRIGGER VOCABULARY</div>
+      <div class="q-text">Custom shorthand words to shift modes mid-session. (optional)</div>
+      <div class="custom-wrap">
+        <div class="custom-label">// SLOW DOWN TRIGGER</div>
+        <input type="text" class="custom-input" placeholder="e.g. 'unpack'" style="min-height:36px;resize:none;" data-q="q12-slow">
+      </div>
+      <div class="custom-wrap" style="margin-top:8px">
+        <div class="custom-label">// SPEED UP / SKIP DETAIL TRIGGER</div>
+        <input type="text" class="custom-input" placeholder="e.g. 'short'" style="min-height:36px;resize:none;" data-q="q12-fast">
+      </div>
+      <div class="custom-wrap" style="margin-top:8px">
+        <div class="custom-label">// OPTIONS MODE TRIGGER</div>
+        <input type="text" class="custom-input" placeholder="e.g. 'halp'" style="min-height:36px;resize:none;" data-q="q12-options">
+      </div>
+      <div class="custom-wrap" style="margin-top:8px">
+        <div class="custom-label">// COMMIT AND EXECUTE TRIGGER</div>
+        <input type="text" class="custom-input" placeholder="e.g. 'lfg'" style="min-height:36px;resize:none;" data-q="q12-commit">
+      </div>
+    </div>
+
+    <div class="q-block" id="q13">
+      <div class="q-number">Q13 // FAILURE MODE</div>
+      <div class="q-text">When the agent is uncertain or at the edge of its knowledge?</div>
+      <div class="options" data-q="q13" data-type="single">
+        <label class="opt"><input type="radio" name="q13" value="Ask for clarification"><span class="opt-dot"></span>Ask for clarification</label>
+        <label class="opt"><input type="radio" name="q13" value="Attempt and flag uncertainty inline"><span class="opt-dot"></span>Attempt and flag uncertainty inline</label>
+        <label class="opt"><input type="radio" name="q13" value="Attempt silently — I'll catch errors"><span class="opt-dot"></span>Attempt silently — I'll catch errors</label>
+        <label class="opt"><input type="radio" name="q13" value="Surface the uncertainty as a question first"><span class="opt-dot"></span>Surface uncertainty as a question first</label>
+      </div>
+      <div class="custom-wrap">
+        <div class="custom-label">// CUSTOM FAILURE RULE</div>
+        <textarea class="custom-input" placeholder="..." rows="1" data-q="q13-custom"></textarea>
+      </div>
+    </div>
+
+    <div class="q-block" id="q14">
+      <div class="q-number">Q14 // PROFILE NAME</div>
+      <div class="q-text">Name this profile. What context is it for?</div>
+      <div class="options" data-q="q14" data-type="single">
+        <label class="opt"><input type="radio" name="q14" value="default"><span class="opt-dot"></span>default</label>
+        <label class="opt"><input type="radio" name="q14" value="dev"><span class="opt-dot"></span>dev</label>
+        <label class="opt"><input type="radio" name="q14" value="writing"><span class="opt-dot"></span>writing</label>
+        <label class="opt"><input type="radio" name="q14" value="research"><span class="opt-dot"></span>research</label>
+        <label class="opt"><input type="radio" name="q14" value="strategy"><span class="opt-dot"></span>strategy</label>
+      </div>
+      <div class="custom-wrap">
+        <div class="custom-label">// CUSTOM PROFILE NAME</div>
+        <input type="text" class="custom-input" placeholder="e.g. 'security', 'client-work', 'brainstorm'..." style="min-height:36px;resize:none;" data-q="q14-custom">
+      </div>
+    </div>
+
+  </div><!-- /tier2-section -->
+
+  <!-- Generate -->
+  <div class="generate-wrap">
+    <button class="btn-generate" id="btn-generate" onclick="generateProfile()">generate profile</button>
+    <button class="btn-secondary" onclick="resetForm()">reset</button>
+  </div>
+
+  <!-- Output -->
+  <div id="output-section">
+    <div class="divider"></div>
+    <div class="output-header">
+      <span class="output-title">// GENERATED PROFILE BLOCK</span>
+      <button class="btn-copy" id="btn-copy" onclick="copyOutput()">copy</button>
+    </div>
+    <div class="output-block" id="output-block"></div>
+  </div>
+
+</div><!-- /shell -->
+
+<script>
+const TOTAL = 14;
+let answered = new Set();
+
+function getVal(q) {
+  const sel = document.querySelector(`input[name="${q}"]:checked`);
+  return sel ? sel.value : null;
+}
+
+function getMulti(q) {
+  return [...document.querySelectorAll(`input[name="${q}"]:checked`)].map(i => i.value);
+}
+
+function getCustom(key) {
+  const el = document.querySelector(`[data-q="${key}"]`);
+  return el ? el.value.trim() : '';
+}
+
+function updateProgress() {
+  const pct = Math.round((answered.size / TOTAL) * 100);
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-label').textContent = answered.size + ' / ' + TOTAL + ' answered';
+  document.getElementById('progress-pct').textContent = pct + '%';
+
+  // Mark blocks as answered
+  answered.forEach(q => {
+    const block = document.getElementById(q);
+    if (block) block.classList.add('answered');
+  });
+
+  checkTier2Gate();
+}
+
+function checkTier2Gate() {
+  const tier1done = ['q1','q2','q3'].every(q => answered.has(q));
+  const gate = document.getElementById('tier2-gate');
+  const title = document.getElementById('gate-title');
+  const sub = document.getElementById('gate-sub');
+  const section = document.getElementById('tier2-section');
+
+  if (tier1done) {
+    gate.classList.add('unlocked');
+    title.classList.add('unlocked');
+    title.textContent = '// TIER 2 UNLOCKED';
+    sub.classList.add('unlocked');
+    sub.textContent = 'Deep profile active — 11 more questions below';
+    section.classList.add('visible');
+  }
+}
+
+// Wire up radio/checkbox options
+document.querySelectorAll('.options').forEach(container => {
+  const qId = container.dataset.q;
+  const type = container.dataset.type;
+
+  container.querySelectorAll('.opt').forEach(opt => {
+    opt.addEventListener('click', () => {
+      const input = opt.querySelector('input');
+
+      if (type === 'single') {
+        container.querySelectorAll('.opt').forEach(o => o.classList.remove('selected'));
+        input.checked = true;
+        opt.classList.add('selected');
+        answered.add(qId);
+      } else {
+        input.checked = !input.checked;
+        opt.classList.toggle('selected', input.checked);
+        const anyChecked = container.querySelectorAll('input:checked').length > 0;
+        if (anyChecked) answered.add(qId);
+        else answered.delete(qId);
+      }
+      updateProgress();
+    });
+  });
+});
+
+// Custom inputs also count as answers
+document.querySelectorAll('.custom-input').forEach(input => {
+  input.addEventListener('input', () => {
+    const key = input.dataset.q;
+    if (!key) return;
+    const base = key.replace('-custom','').replace(/-slow|-fast|-options|-commit/,'');
+    const qNum = base.match(/q\d+/)?.[0];
+    if (qNum && input.value.trim()) {
+      answered.add(qNum);
+      const block = document.getElementById(qNum);
+      if (block) block.classList.add('answered');
+      updateProgress();
+    }
+  });
+});
+
+function generateProfile() {
+  const name = getCustom('q14-custom') || getVal('q14') || 'default';
+  const register = getCustom('q1-custom') || getVal('q1') || 'not specified';
+  const format = getCustom('q2-custom') || getVal('q2') || 'not specified';
+  const autonomy = getCustom('q3-custom') || getVal('q3') || 'not specified';
+  const explanation = getCustom('q4-custom') ? `${getVal('q4') || ''} (trigger: ${getCustom('q4-custom')})` : (getVal('q4') || 'not specified');
+  const tokens = [...getMulti('q5'), getCustom('q5-custom')].filter(Boolean);
+  const inference = getCustom('q6-custom') || getVal('q6') || 'not specified';
+  const scope = getCustom('q7-custom') || getVal('q7') || 'not specified';
+  const iteration = getCustom('q8-custom') || getVal('q8') || 'not specified';
+  const constraints = [...getMulti('q9'), getCustom('q9-custom')].filter(Boolean);
+  const tools = [...getMulti('q10'), getCustom('q10-custom')].filter(Boolean);
+  const persona = getCustom('q11-custom') || getVal('q11') || 'not specified';
+  const failMode = getCustom('q13-custom') || getVal('q13') || 'not specified';
+
+  const slowTrigger = getCustom('q12-slow');
+  const fastTrigger = getCustom('q12-fast');
+  const optTrigger = getCustom('q12-options');
+  const commitTrigger = getCustom('q12-commit');
+
+  const triggers = [
+    slowTrigger && `"${slowTrigger}" = slow down / full reasoning`,
+    fastTrigger && `"${fastTrigger}" = skip detail / conclusion only`,
+    optTrigger && `"${optTrigger}" = options mode`,
+    commitTrigger && `"${commitTrigger}" = commit and execute`,
+  ].filter(Boolean);
+
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0];
+  const isTier2 = answered.size > 3;
+
+  let out = `# HtALR User Profile\n`;
+  out += `## ${isTier2 ? 'Tier 2 — Deep Profile' : 'Tier 1 — Quick Profile'} v1.0\n`;
+  out += `\n---\n\n`;
+  out += `[PROFILE: ${name}]\n`;
+  out += `generated: ${dateStr}\n\n`;
+  out += `---\n\n`;
+  out += `### Register\n`;
+  out += `- Tone: ${register}\n\n`;
+  out += `### Output\n`;
+  out += `- Default format: ${format}\n`;
+  if (tools.length) out += `- Optimised for: ${tools.join(', ')}\n`;
+  out += `\n### Autonomy\n`;
+  out += `- Default: ${autonomy}\n`;
+
+  if (isTier2) {
+    out += `\n### Explanation density\n`;
+    out += `- ${explanation}\n`;
+
+    if (tokens.length) {
+      out += `\n### Token optimisation\n`;
+      tokens.forEach(t => out += `- ${t}\n`);
+    }
+
+    out += `\n### Inference depth\n`;
+    out += `- ${inference}\n`;
+
+    out += `\n### Scope\n`;
+    out += `- ${scope}\n`;
+
+    out += `\n### Iteration posture\n`;
+    out += `- ${iteration}\n`;
+
+    out += `\n### Failure mode\n`;
+    out += `- ${failMode}\n`;
+
+    if (persona !== 'not specified' && persona !== 'No persona — default register') {
+      out += `\n### Persona\n`;
+      out += `- ${persona}\n`;
+    }
+
+    if (constraints.length) {
+      out += `\n### Constraints\n`;
+      constraints.forEach(c => out += `- ${c}\n`);
+    }
+
+    if (triggers.length) {
+      out += `\n### Trigger vocabulary\n`;
+      triggers.forEach(t => out += `- ${t}\n`);
+    }
+  }
+
+  out += `\n---\n\n`;
+  out += `### Flags\n\n`;
+  out += `| Flag | Behaviour |\n`;
+  out += `|------|-----------|\n`;
+  out += `| \`-lfg\` | Execute without clarifying questions — course-correct on output |\n`;
+  out += `| \`-yolo\` | Maximum speed and efficiency — all responses in millennial speak |\n`;
+  out += `| \`-q\` | Quiet mode — conclusion only, no rationale |\n`;
+  out += `| \`-v\` | Verbose mode — full reasoning and working shown |\n`;
+  out += `| \`-o [format]\` | Override output format e.g. \`-o json\`, \`-o prose\`, \`-o table\` |\n`;
+  out += `| \`-d\` | Draft mode — output flagged with confidence and assumptions inline |\n`;
+  out += `| \`-halp\` | Options mode — return 2-3 recommended approaches before committing |\n`;
+  out += `| \`-obey\` | Strict mode — literal execution only, no inference beyond the query |\n`;
+  out += `| \`-help\` | Help mode — show flag list, offer to add new flag |\n`;
+  out += `| \`-nevermore\` | Poetry mode — all outputs phrased as poetry or prose |\n`;
+  out += `| \`-makeitso\` | Commit mode — commits query context as a change to this instruction file |\n`;
+
+  out += `\nFlags are stackable: \`-lfg -q\` = execute silently, conclusion only.\n`;
+  out += `\n---\n\n`;
+  out += `*HtALR Profile v1.0 — ${isTier2 ? 'Tier 2' : 'Tier 1'}*\n`;
+  out += `*Project: human to agentic language rosetta*\n`;
+
+  document.getElementById('output-block').textContent = out;
+  document.getElementById('output-section').classList.add('visible');
+  document.getElementById('output-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function copyOutput() {
+  const text = document.getElementById('output-block').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('btn-copy');
+    btn.textContent = '✓ copied';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+function resetForm() {
+  document.querySelectorAll('input[type="radio"], input[type="checkbox"]').forEach(i => i.checked = false);
+  document.querySelectorAll('.opt').forEach(o => o.classList.remove('selected'));
+  document.querySelectorAll('.custom-input').forEach(i => i.value = '');
+  document.querySelectorAll('.q-block').forEach(b => b.classList.remove('answered'));
+  document.getElementById('tier2-section').classList.remove('visible');
+  document.getElementById('tier2-gate').classList.remove('unlocked');
+  document.getElementById('gate-title').classList.remove('unlocked');
+  document.getElementById('gate-title').textContent = '// TIER 2 LOCKED — complete Tier 1 to unlock';
+  document.getElementById('gate-sub').classList.remove('unlocked');
+  document.getElementById('gate-sub').textContent = '7 more questions covering explanation density, token optimisation, agent behaviour, and more';
+  document.getElementById('output-section').classList.remove('visible');
+  answered.clear();
+  updateProgress();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+</body>
+</html>

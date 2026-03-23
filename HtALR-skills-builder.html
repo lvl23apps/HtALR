@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HtALR Skills Builder</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --surface: #141414;
+    --surface2: #1a1a1a;
+    --border: #2a2a2a;
+    --border-active: #3a3a3a;
+    --accent: #00ff88;
+    --accent2: #00ccff;
+    --accent3: #ff6b35;
+    --text: #e8e8e8;
+    --text-muted: #666;
+    --text-dim: #444;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Space Grotesk', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .shell {
+    position: relative;
+    z-index: 1;
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  .header {
+    margin-bottom: 48px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 24px;
+  }
+
+  .header-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .prompt-char { font-family: var(--mono); color: var(--accent3); font-size: 18px; font-weight: 700; }
+
+  .header h1 { font-family: var(--mono); font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+  .header h1 span { color: var(--accent3); }
+  .header-sub { font-family: var(--mono); font-size: 12px; color: var(--text-muted); margin-left: 30px; }
+
+  .progress-wrap { margin-bottom: 40px; }
+  .progress-meta { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
+  .progress-track { height: 2px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent3), var(--accent2)); border-radius: 2px; transition: width 0.4s ease; width: 0%; }
+
+  .tier-label {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase;
+    margin-bottom: 20px; padding: 4px 10px;
+    border: 1px solid var(--border); border-radius: 2px; color: var(--text-muted);
+  }
+  .tier-label.t1 { border-color: var(--accent3); color: var(--accent3); }
+  .tier-label.t2 { border-color: var(--accent2); color: var(--accent2); }
+  .tier-label::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  .q-block {
+    margin-bottom: 28px; padding: 20px 24px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 4px; transition: border-color 0.2s;
+  }
+  .q-block:focus-within { border-color: var(--border-active); }
+  .q-block.answered { border-color: rgba(255,107,53,0.25); }
+  .q-block.answered .q-number::after { content: ' ✓'; color: var(--accent3); }
+
+  .q-number { font-family: var(--mono); font-size: 10px; color: var(--text-dim); margin-bottom: 6px; letter-spacing: 1px; }
+  .q-text { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 16px; line-height: 1.5; }
+
+  .options { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+
+  .opt {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 12px; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 3px;
+    cursor: pointer; font-family: var(--mono); font-size: 12px;
+    color: var(--text-muted); transition: all 0.15s; user-select: none;
+  }
+  .opt:hover { border-color: var(--border-active); color: var(--text); }
+  .opt.selected { border-color: var(--accent3); color: var(--accent3); background: rgba(255,107,53,0.05); }
+  .opt input { display: none; }
+  .opt-dot { width: 8px; height: 8px; border-radius: 50%; border: 1px solid currentColor; flex-shrink: 0; transition: background 0.15s; }
+  .opt.selected .opt-dot { background: var(--accent3); }
+
+  .opt.multi.selected { border-color: var(--accent2); color: var(--accent2); background: rgba(0,204,255,0.05); }
+  .opt.multi.selected .opt-dot { background: var(--accent2); border-color: var(--accent2); border-radius: 2px; }
+
+  .custom-wrap { margin-top: 10px; }
+  .custom-label { font-family: var(--mono); font-size: 10px; color: var(--text-dim); margin-bottom: 6px; letter-spacing: 1px; }
+  .custom-input {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 3px; padding: 8px 12px; font-family: var(--mono);
+    font-size: 12px; color: var(--text); outline: none;
+    transition: border-color 0.15s; resize: vertical; min-height: 36px;
+  }
+  .custom-input:focus { border-color: var(--border-active); }
+  .custom-input::placeholder { color: var(--text-dim); }
+
+  .tier2-gate {
+    margin: 40px 0 32px; padding: 24px;
+    border: 1px dashed var(--border); border-radius: 4px; text-align: center;
+  }
+  .tier2-gate.unlocked { border-style: solid; border-color: rgba(0,204,255,0.3); background: rgba(0,204,255,0.03); }
+  .gate-title { font-family: var(--mono); font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
+  .gate-title.unlocked { color: var(--accent2); }
+  .gate-sub { font-family: var(--mono); font-size: 11px; color: var(--text-dim); }
+  .gate-sub.unlocked { color: var(--text-muted); }
+
+  #tier2-section { opacity: 0; max-height: 0; overflow: hidden; transition: opacity 0.5s ease, max-height 0.8s ease; }
+  #tier2-section.visible { opacity: 1; max-height: 9999px; }
+
+  .divider { height: 1px; background: var(--border); margin: 36px 0; }
+
+  .generate-wrap { margin-top: 40px; display: flex; align-items: center; gap: 16px; }
+
+  .btn-generate {
+    font-family: var(--mono); font-size: 13px; font-weight: 700;
+    padding: 12px 28px; background: var(--accent3); color: #000;
+    border: none; border-radius: 3px; cursor: pointer;
+    letter-spacing: 0.5px; transition: opacity 0.15s, transform 0.1s;
+  }
+  .btn-generate:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn-generate:active { transform: translateY(0); }
+
+  .btn-secondary {
+    font-family: var(--mono); font-size: 11px; color: var(--text-muted);
+    background: none; border: 1px solid var(--border); border-radius: 3px;
+    padding: 8px 16px; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+  }
+  .btn-secondary:hover { color: var(--text); border-color: var(--border-active); }
+
+  #output-section { margin-top: 48px; display: none; }
+  #output-section.visible { display: block; }
+
+  .output-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .output-title { font-family: var(--mono); font-size: 12px; color: var(--accent3); letter-spacing: 1px; }
+
+  .btn-copy {
+    font-family: var(--mono); font-size: 11px; color: var(--text-muted);
+    background: none; border: 1px solid var(--border); border-radius: 3px;
+    padding: 5px 12px; cursor: pointer; transition: all 0.15s;
+  }
+  .btn-copy:hover { color: var(--accent3); border-color: var(--accent3); }
+  .btn-copy.copied { color: var(--accent); border-color: var(--accent); }
+
+  .output-block {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
+    padding: 24px; font-family: var(--mono); font-size: 12px;
+    line-height: 1.8; color: var(--text); white-space: pre-wrap; word-break: break-word;
+  }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="header">
+    <div class="header-top">
+      <span class="prompt-char">$</span>
+      <h1>Ht<span>ALR</span> Skills Builder</h1>
+    </div>
+    <div class="header-sub">// human to agentic language rosetta — skill module generator</div>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-meta">
+      <span id="progress-label">0 / 12 answered</span>
+      <span id="progress-pct">0%</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progress-fill"></div>
+    </div>
+  </div>
+
+  <!-- TIER 1 — SKILL IDENTITY -->
+  <div class="tier-label t1">Tier 1 — Skill Identity</div>
+
+  <div class="q-block" id="q1">
+    <div class="q-number">Q01 // SKILL NAME</div>
+    <div class="q-text">What is this skill called? Use a short slug — this becomes the folder name and identifier.</div>
+    <div class="custom-wrap">
+      <div class="custom-label">// SKILL NAME (slug format — e.g. 'pdf-extract', 'code-review')</div>
+      <input type="text" class="custom-input" placeholder="e.g. 'data-cleanup', 'email-drafting', 'api-docs'..." style="min-height:36px;resize:none;" data-q="q1-name">
+    </div>
+  </div>
+
+  <div class="q-block" id="q2">
+    <div class="q-number">Q02 // SKILL CATEGORY</div>
+    <div class="q-text">What domain does this skill operate in?</div>
+    <div class="options" data-q="q2" data-type="single">
+      <label class="opt"><input type="radio" name="q2" value="Document creation"><span class="opt-dot"></span>Document creation</label>
+      <label class="opt"><input type="radio" name="q2" value="Code generation"><span class="opt-dot"></span>Code generation</label>
+      <label class="opt"><input type="radio" name="q2" value="Data processing"><span class="opt-dot"></span>Data processing</label>
+      <label class="opt"><input type="radio" name="q2" value="Research and analysis"><span class="opt-dot"></span>Research and analysis</label>
+      <label class="opt"><input type="radio" name="q2" value="Communication and writing"><span class="opt-dot"></span>Communication and writing</label>
+      <label class="opt"><input type="radio" name="q2" value="File transformation"><span class="opt-dot"></span>File transformation</label>
+      <label class="opt"><input type="radio" name="q2" value="Workflow automation"><span class="opt-dot"></span>Workflow automation</label>
+      <label class="opt"><input type="radio" name="q2" value="UI and frontend"><span class="opt-dot"></span>UI and frontend</label>
+    </div>
+    <div class="custom-wrap">
+      <div class="custom-label">// CUSTOM CATEGORY</div>
+      <input type="text" class="custom-input" placeholder="Describe the domain..." style="min-height:36px;resize:none;" data-q="q2-custom">
+    </div>
+  </div>
+
+  <div class="q-block" id="q3">
+    <div class="q-number">Q03 // TRIGGER CONDITION</div>
+    <div class="q-text">When should the agent load and use this skill? Be specific — this is the primary triggering mechanism.</div>
+    <div class="options" data-q="q3" data-type="multi">
+      <label class="opt multi"><input type="checkbox" name="q3" value="User mentions a specific file type"><span class="opt-dot"></span>User mentions a specific file type</label>
+      <label class="opt multi"><input type="checkbox" name="q3" value="User asks to create or generate a document"><span class="opt-dot"></span>User asks to create or generate</label>
+      <label class="opt multi"><input type="checkbox" name="q3" value="User asks to read or extract from a file"><span class="opt-dot"></span>User asks to read or extract</label>
+      <label class="opt multi"><input type="checkbox" name="q3" value="User references a specific tool or platform"><span class="opt-dot"></span>User references a specific tool</label>
+      <label class="opt multi"><input type="checkbox" name="q3" value="User describes a multi-step workflow"><span class="opt-dot"></span>User describes a multi-step workflow</label>
+      <label class="opt multi"><input type="checkbox" name="q3" value="User asks to transform or convert something"><span class="opt-dot"></span>User asks to transform or convert</label>
+    </div>
+    <div class="custom-wrap">
+      <div class="custom-label">// CUSTOM TRIGGER — describe phrases or contexts that should load this skill</div>
+      <textarea class="custom-input" placeholder="e.g. 'Any time the user mentions invoice, receipt, or billing document...'" rows="2" data-q="q3-custom"></textarea>
+    </div>
+  </div>
+
+  <!-- TIER 2 GATE -->
+  <div class="tier2-gate" id="tier2-gate">
+    <div class="gate-title" id="gate-title">// TIER 2 LOCKED — complete Tier 1 to unlock</div>
+    <div class="gate-sub" id="gate-sub">9 more questions covering input/output spec, behaviour, constraints, and bundled resources</div>
+  </div>
+
+  <!-- TIER 2 — SKILL SPEC -->
+  <div id="tier2-section">
+    <div class="tier-label t2">Tier 2 — Skill Specification</div>
+
+    <div class="q-block" id="q4">
+      <div class="q-number">Q04 // INPUT TYPE</div>
+      <div class="q-text">What does this skill take as input? (select all that apply)</div>
+      <div class="options" data-q="q4" data-type="multi">
+        <label class="opt multi"><input type="checkbox" name="q4" value="Free text / natural language prompt"><span class="opt-dot"></span>Free text prompt</label>
+        <label class="opt multi"><input type="checkbox" name="q4" value="Uploaded file (PDF, DOCX, XLSX, etc.)"><span class="opt-dot"></span>Uploaded file</label>
+        <label class="opt multi"><input type="checkbox" name="q4" value="Structured data (JSON, CSV, YAML)"><span class="opt-dot"></span>Structured data</label>
+        <label class="opt multi"><input type="checkbox" name="q4" value="Code or script"><span class="opt-dot"></span>Code or script</label>
+        <label class="opt multi"><input type="checkbox" name="q4" value="URL or web content"><span class="opt-dot"></span>URL or web content</label>
+        <label class="opt multi"><input type="checkbox" name="q4" value="Image or screenshot"><span class="opt-dot"></span>Image or screenshot</label>
+        <label class="opt multi"><input type="checkbox" name="q4" value="Template or prior output"><span class="opt-dot"></span>Template or prior output</label>
+      </div>
+      <div class="custom-wrap">
+        <div class="custom-label">// OTHER INPUT TYPES</div>
+        <input type="text" class="custom-input" placeholder="Describe any other input..." style="min-height:36px;resize:none;" data-q="q4-custom">
+      </div>
+    </div>
+
+    <div class="q-block" id="q5">
+      <div class="q-number">Q05 // OUTPUT TYPE</div>
+      <div class="q-text">What does this skill produce as output? (select all that apply)</div>
+      <div class="options" data-q="q5" data-type="multi">
+        <label class="opt multi"><input type="checkbox" name="q5" value="Markdown document"><span class="opt-dot"></span>Markdown document</label>
+        <label class="opt multi"><input type="checkbox" name="q5" value="DOCX file"><span class="opt-dot"></span>DOCX file</label>
+        <label class="opt multi"><input type="checkbox" name="q5" value="PPTX file"><span class="opt-dot"></span>PPTX file</label>
+        <label class="opt multi"><input type="checkbox" name="q5" value="XLSX / CSV file"><span class="opt-dot"></span>XLSX / CSV file</label>
+        <label class="opt multi"><input type="checkbox" name="q5" value="PDF file"><span class="opt-dot"></span>PDF file</label>
+        <label class="opt multi"><input type="checkbox" name="q5" value="Code file"><span class="opt-dot"></span>Code file</label>
+        <label class="opt multi"><input type="checkbox" name="q5" value="HTML file"><span class="opt-dot"></span>HTML file</label>
+        <label class="opt multi"><input type="checkbox" name="q5" value="Inline response (no file)"><span class="opt-dot"></span>Inline response</label>
+        <label class="opt multi"><input type="checkbox" name="q5" value="Structured data (JSON/YAML)"><span class="opt-dot"></span>Structured data</label>
+      </div>
+      <div class="custom-wrap">
+        <div class="custom-label">// OTHER OUTPUT TYPES</div>
+        <input type="text" class="custom-input" placeholder="Describe any other output..." style="min-height:36px;resize:none;" data-q="q5-custom">
+      </div>
+    </div>
+
+    <div class="q-block" id="q6">
+      <div class="q-number">Q06 // EXECUTION STEPS</div>
+      <div class="q-text">Describe the steps the agent should follow when executing this skill. Order matters.</div>
+      <div class="custom-wrap">
+        <div class="custom-label">// STEP-BY-STEP WORKFLOW</div>
+        <textarea class="custom-input" placeholder="1. Read the skill file&#10;2. Check for uploaded files at /mnt/user-data/uploads&#10;3. ..." rows="6" data-q="q6-steps"></textarea>
+      </div>
+    </div>
+
+    <div class="q-block" id="q7">
+      <div class="q-number">Q07 // QUALITY RULES</div>
+      <div class="q-text">What defines a good output for this skill? (select all that apply)</div>
+      <div class="options" data-q="q7" data-type="multi">
+        <label class="opt multi"><input type="checkbox" name="q7" value="Output matches a specific format or template"><span class="opt-dot"></span>Matches format / template</label>
+        <label class="opt multi"><input type="checkbox" name="q7" value="Output is validated before delivery"><span class="opt-dot"></span>Validated before delivery</label>
+        <label class="opt multi"><input type="checkbox" name="q7" value="No hallucinated data — only use provided inputs"><span class="opt-dot"></span>No hallucinated data</label>
+        <label class="opt multi"><input type="checkbox" name="q7" value="Output is immediately usable without editing"><span class="opt-dot"></span>Immediately usable</label>
+        <label class="opt multi"><input type="checkbox" name="q7" value="Consistent structure across runs"><span class="opt-dot"></span>Consistent structure</label>
+        <label class="opt multi"><input type="checkbox" name="q7" value="Sources cited where applicable"><span class="opt-dot"></span>Sources cited</label>
+        <label class="opt multi"><input type="checkbox" name="q7" value="Edge cases handled gracefully"><span class="opt-dot"></span>Edge cases handled</label>
+      </div>
+      <div class="custom-wrap">
+        <div class="custom-label">// CUSTOM QUALITY RULES</div>
+        <textarea class="custom-input" placeholder="Describe any specific quality requirements..." rows="2" data-q="q7-custom"></textarea>
+      </div>
+    </div>
+
+    <div class="q-block" id="q8">
+      <div class="q-number">Q08 // CONSTRAINTS</div>
+      <div class="q-text">What should this skill never do? (select all that apply)</div>
+      <div class="options" data-q="q8" data-type="multi">
+        <label class="opt multi"><input type="checkbox" name="q8" value="Never invent data not present in the input"><span class="opt-dot"></span>Never invent data</label>
+        <label class="opt multi"><input type="checkbox" name="q8" value="Never deviate from the provided template"><span class="opt-dot"></span>Never deviate from template</label>
+        <label class="opt multi"><input type="checkbox" name="q8" value="Never output without validation step"><span class="opt-dot"></span>Never skip validation</label>
+        <label class="opt multi"><input type="checkbox" name="q8" value="Never use placeholder or dummy content"><span class="opt-dot"></span>Never use placeholder content</label>
+        <label class="opt multi"><input type="checkbox" name="q8" value="Never exceed scope of the request"><span class="opt-dot"></span>Never exceed scope</label>
+        <label class="opt multi"><input type="checkbox" name="q8" value="Never proceed if input is ambiguous — ask first"><span class="opt-dot"></span>Never proceed if ambiguous</label>
+      </div>
+      <div class="custom-wrap">
+        <div class="custom-label">// CUSTOM CONSTRAINTS</div>
+        <textarea class="custom-input" placeholder="List anything locked off for this skill..." rows="2" data-q="q8-custom"></textarea>
+      </div>
+    </div>
+
+    <div class="q-block" id="q9">
+      <div class="q-number">Q09 // DEPENDENCIES</div>
+      <div class="q-text">Does this skill require specific tools, libraries, or other skills? (select all that apply)</div>
+      <div class="options" data-q="q9" data-type="multi">
+        <label class="opt multi"><input type="checkbox" name="q9" value="bash_tool"><span class="opt-dot"></span>bash_tool</label>
+        <label class="opt multi"><input type="checkbox" name="q9" value="web_search"><span class="opt-dot"></span>web_search</label>
+        <label class="opt multi"><input type="checkbox" name="q9" value="web_fetch"><span class="opt-dot"></span>web_fetch</label>
+        <label class="opt multi"><input type="checkbox" name="q9" value="Python (pip packages)"><span class="opt-dot"></span>Python packages</label>
+        <label class="opt multi"><input type="checkbox" name="q9" value="Node.js (npm packages)"><span class="opt-dot"></span>Node / npm packages</label>
+        <label class="opt multi"><input type="checkbox" name="q9" value="Another HtALR skill"><span class="opt-dot"></span>Another HtALR skill</label>
+        <label class="opt multi"><input type="checkbox" name="q9" value="MCP server"><span class="opt-dot"></span>MCP server</label>
+      </div>
+      <div class="custom-wrap">
+        <div class="custom-label">// SPECIFIC PACKAGES OR SKILL NAMES</div>
+        <textarea class="custom-input" placeholder="e.g. 'pip install pandas openpyxl', 'requires docx skill'..." rows="2" data-q="q9-custom"></textarea>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="q-block" id="q10">
+      <div class="q-number">Q10 // BUNDLED RESOURCES</div>
+      <div class="q-text">Does this skill need supporting files alongside the SKILL.md? (select all that apply)</div>
+      <div class="options" data-q="q10" data-type="multi">
+        <label class="opt multi"><input type="checkbox" name="q10" value="scripts/ — executable helper scripts"><span class="opt-dot"></span>scripts/</label>
+        <label class="opt multi"><input type="checkbox" name="q10" value="references/ — reference docs loaded on demand"><span class="opt-dot"></span>references/</label>
+        <label class="opt multi"><input type="checkbox" name="q10" value="assets/ — templates, fonts, icons"><span class="opt-dot"></span>assets/</label>
+        <label class="opt multi"><input type="checkbox" name="q10" value="examples/ — sample inputs and outputs"><span class="opt-dot"></span>examples/</label>
+        <label class="opt multi"><input type="checkbox" name="q10" value="No bundled resources needed"><span class="opt-dot"></span>No bundled resources</label>
+      </div>
+      <div class="custom-wrap">
+        <div class="custom-label">// DESCRIBE WHAT EACH RESOURCE CONTAINS</div>
+        <textarea class="custom-input" placeholder="e.g. 'scripts/validate.py — validates output structure before delivery'..." rows="2" data-q="q10-custom"></textarea>
+      </div>
+    </div>
+
+    <div class="q-block" id="q11">
+      <div class="q-number">Q11 // FAILURE MODE</div>
+      <div class="q-text">When this skill can't complete the task, what should happen?</div>
+      <div class="options" data-q="q11" data-type="single">
+        <label class="opt"><input type="radio" name="q11" value="Ask the user for the missing information"><span class="opt-dot"></span>Ask for missing info</label>
+        <label class="opt"><input type="radio" name="q11" value="Attempt with assumptions flagged inline"><span class="opt-dot"></span>Attempt with assumptions flagged</label>
+        <label class="opt"><input type="radio" name="q11" value="Produce a partial output and note gaps"><span class="opt-dot"></span>Partial output, note gaps</label>
+        <label class="opt"><input type="radio" name="q11" value="Abort and surface the blocker clearly"><span class="opt-dot"></span>Abort and surface the blocker</label>
+      </div>
+      <div class="custom-wrap">
+        <div class="custom-label">// CUSTOM FAILURE RULE</div>
+        <input type="text" class="custom-input" placeholder="..." style="min-height:36px;resize:none;" data-q="q11-custom">
+      </div>
+    </div>
+
+    <div class="q-block" id="q12">
+      <div class="q-number">Q12 // SKILL DESCRIPTION</div>
+      <div class="q-text">Write the triggering description for this skill. This is what the agent reads to decide whether to load it — be specific and a little pushy.</div>
+      <div class="custom-wrap">
+        <div class="custom-label">// DESCRIPTION (shown in available_skills — primary trigger mechanism)</div>
+        <textarea class="custom-input" placeholder="e.g. 'Use this skill whenever the user wants to create, read, or edit Excel files. Trigger on any mention of .xlsx, spreadsheet, workbook, or tabular data. Also use when cleaning or restructuring CSV data into a proper spreadsheet format.'..." rows="4" data-q="q12-desc"></textarea>
+      </div>
+    </div>
+
+  </div><!-- /tier2-section -->
+
+  <div class="generate-wrap">
+    <button class="btn-generate" onclick="generateSkill()">generate SKILL.md</button>
+    <button class="btn-secondary" onclick="resetForm()">reset</button>
+  </div>
+
+  <div id="output-section">
+    <div class="divider"></div>
+    <div class="output-header">
+      <span class="output-title">// GENERATED SKILL.md</span>
+      <button class="btn-copy" id="btn-copy" onclick="copyOutput()">copy</button>
+    </div>
+    <div class="output-block" id="output-block"></div>
+  </div>
+
+</div>
+
+<script>
+const TOTAL = 12;
+let answered = new Set();
+
+function getVal(q) {
+  const sel = document.querySelector('input[name="' + q + '"]:checked');
+  return sel ? sel.value : null;
+}
+
+function getMulti(q) {
+  return [...document.querySelectorAll('input[name="' + q + '"]:checked')].map(i => i.value);
+}
+
+function getCustom(key) {
+  const el = document.querySelector('[data-q="' + key + '"]');
+  return el ? el.value.trim() : '';
+}
+
+function updateProgress() {
+  const pct = Math.round((answered.size / TOTAL) * 100);
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-label').textContent = answered.size + ' / ' + TOTAL + ' answered';
+  document.getElementById('progress-pct').textContent = pct + '%';
+  answered.forEach(q => {
+    const block = document.getElementById(q);
+    if (block) block.classList.add('answered');
+  });
+  checkTier2Gate();
+}
+
+function checkTier2Gate() {
+  const tier1done = ['q1','q2','q3'].every(q => answered.has(q));
+  const gate = document.getElementById('tier2-gate');
+  const title = document.getElementById('gate-title');
+  const sub = document.getElementById('gate-sub');
+  const section = document.getElementById('tier2-section');
+  if (tier1done) {
+    gate.classList.add('unlocked');
+    title.classList.add('unlocked');
+    title.textContent = '// TIER 2 UNLOCKED';
+    sub.classList.add('unlocked');
+    sub.textContent = 'Skill spec active — 9 more questions below';
+    section.classList.add('visible');
+  }
+}
+
+document.querySelectorAll('.options').forEach(function(container) {
+  var qId = container.dataset.q;
+  var type = container.dataset.type;
+  container.querySelectorAll('.opt').forEach(function(opt) {
+    opt.addEventListener('click', function() {
+      var input = opt.querySelector('input');
+      if (type === 'single') {
+        container.querySelectorAll('.opt').forEach(function(o) { o.classList.remove('selected'); });
+        input.checked = true;
+        opt.classList.add('selected');
+        answered.add(qId);
+      } else {
+        input.checked = !input.checked;
+        opt.classList.toggle('selected', input.checked);
+        var anyChecked = container.querySelectorAll('input:checked').length > 0;
+        if (anyChecked) answered.add(qId);
+        else answered.delete(qId);
+      }
+      updateProgress();
+    });
+  });
+});
+
+document.querySelectorAll('.custom-input').forEach(function(input) {
+  input.addEventListener('input', function() {
+    var key = input.dataset.q;
+    if (!key) return;
+    var qNum = key.match(/q\d+/);
+    if (qNum && input.value.trim()) {
+      answered.add(qNum[0]);
+      var block = document.getElementById(qNum[0]);
+      if (block) block.classList.add('answered');
+      updateProgress();
+    }
+  });
+});
+
+function generateSkill() {
+  var skillName = getCustom('q1-name') || 'unnamed-skill';
+  var category = getCustom('q2-custom') || getVal('q2') || 'not specified';
+  var triggerConditions = [...getMulti('q3'), getCustom('q3-custom')].filter(Boolean);
+  var inputTypes = [...getMulti('q4'), getCustom('q4-custom')].filter(Boolean);
+  var outputTypes = [...getMulti('q5'), getCustom('q5-custom')].filter(Boolean);
+  var steps = getCustom('q6-steps');
+  var qualityRules = [...getMulti('q7'), getCustom('q7-custom')].filter(Boolean);
+  var constraints = [...getMulti('q8'), getCustom('q8-custom')].filter(Boolean);
+  var deps = [...getMulti('q9'), getCustom('q9-custom')].filter(Boolean);
+  var resources = [...getMulti('q10'), getCustom('q10-custom')].filter(Boolean);
+  var failMode = getCustom('q11-custom') || getVal('q11') || 'not specified';
+  var description = getCustom('q12-desc') || 'Use this skill for ' + skillName + '.';
+
+  var isTier2 = answered.size > 3;
+
+  var out = '---\n';
+  out += 'name: ' + skillName + '\n';
+  out += 'description: ' + description + '\n';
+  if (deps.length) {
+    out += 'compatibility:\n';
+    deps.forEach(function(d) { out += '  - ' + d + '\n'; });
+  }
+  out += '---\n\n';
+  out += '# ' + skillName + '\n\n';
+  out += '## Overview\n\n';
+  out += 'Category: ' + category + '\n\n';
+
+  if (triggerConditions.length) {
+    out += '**Trigger conditions:**\n';
+    triggerConditions.forEach(function(t) { out += '- ' + t + '\n'; });
+    out += '\n';
+  }
+
+  if (isTier2) {
+    if (inputTypes.length) {
+      out += '## Input\n\n';
+      inputTypes.forEach(function(i) { out += '- ' + i + '\n'; });
+      out += '\n';
+    }
+
+    if (outputTypes.length) {
+      out += '## Output\n\n';
+      outputTypes.forEach(function(o) { out += '- ' + o + '\n'; });
+      out += '\n';
+    }
+
+    if (steps) {
+      out += '## Execution Steps\n\n';
+      out += steps + '\n\n';
+    }
+
+    if (qualityRules.length) {
+      out += '## Quality Rules\n\n';
+      qualityRules.forEach(function(r) { out += '- ' + r + '\n'; });
+      out += '\n';
+    }
+
+    if (constraints.length) {
+      out += '## Constraints\n\n';
+      constraints.forEach(function(c) { out += '- ' + c + '\n'; });
+      out += '\n';
+    }
+
+    out += '## Failure Mode\n\n';
+    out += '- ' + failMode + '\n\n';
+
+    if (resources.length && !resources.includes('No bundled resources needed')) {
+      out += '## Bundled Resources\n\n';
+      resources.filter(function(r) { return r !== 'No bundled resources needed'; }).forEach(function(r) { out += '- ' + r + '\n'; });
+      out += '\n';
+    }
+  }
+
+  out += '---\n\n';
+  out += '*HtALR Skill — ' + skillName + '*\n';
+  out += '*Project: human to agentic language rosetta*\n';
+
+  document.getElementById('output-block').textContent = out;
+  document.getElementById('output-section').classList.add('visible');
+  document.getElementById('output-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function copyOutput() {
+  var text = document.getElementById('output-block').textContent;
+  navigator.clipboard.writeText(text).then(function() {
+    var btn = document.getElementById('btn-copy');
+    btn.textContent = '✓ copied';
+    btn.classList.add('copied');
+    setTimeout(function() { btn.textContent = 'copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+function resetForm() {
+  document.querySelectorAll('input[type="radio"], input[type="checkbox"]').forEach(function(i) { i.checked = false; });
+  document.querySelectorAll('.opt').forEach(function(o) { o.classList.remove('selected'); });
+  document.querySelectorAll('.custom-input').forEach(function(i) { i.value = ''; });
+  document.querySelectorAll('.q-block').forEach(function(b) { b.classList.remove('answered'); });
+  document.getElementById('tier2-section').classList.remove('visible');
+  document.getElementById('tier2-gate').classList.remove('unlocked');
+  document.getElementById('gate-title').classList.remove('unlocked');
+  document.getElementById('gate-title').textContent = '// TIER 2 LOCKED — complete Tier 1 to unlock';
+  document.getElementById('gate-sub').classList.remove('unlocked');
+  document.getElementById('gate-sub').textContent = '9 more questions covering input/output spec, behaviour, constraints, and bundled resources';
+  document.getElementById('output-section').classList.remove('visible');
+  answered.clear();
+  updateProgress();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+</body>
+</html>

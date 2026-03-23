@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HtALR Instruction Builder</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --surface: #141414;
+    --surface2: #1a1a1a;
+    --border: #2a2a2a;
+    --border-active: #3a3a3a;
+    --accent: #00ff88;
+    --accent2: #00ccff;
+    --accent3: #ff6b35;
+    --accent4: #b388ff;
+    --text: #e8e8e8;
+    --text-muted: #666;
+    --text-dim: #444;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Space Grotesk', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(179,136,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(179,136,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .shell {
+    position: relative;
+    z-index: 1;
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  .header {
+    margin-bottom: 48px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 24px;
+  }
+
+  .header-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .prompt-char { font-family: var(--mono); color: var(--accent4); font-size: 18px; font-weight: 700; }
+  .header h1 { font-family: var(--mono); font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+  .header h1 span { color: var(--accent4); }
+  .header-sub { font-family: var(--mono); font-size: 12px; color: var(--text-muted); margin-left: 30px; }
+
+  .progress-wrap { margin-bottom: 40px; }
+  .progress-meta { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
+  .progress-track { height: 2px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent4), var(--accent2)); border-radius: 2px; transition: width 0.4s ease; width: 0%; }
+
+  .tier-label {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase;
+    margin-bottom: 20px; padding: 4px 10px;
+    border: 1px solid var(--border); border-radius: 2px; color: var(--text-muted);
+  }
+  .tier-label.t0 { border-color: var(--accent4); color: var(--accent4); }
+  .tier-label.t1 { border-color: var(--accent); color: var(--accent); }
+  .tier-label.t2 { border-color: var(--accent2); color: var(--accent2); }
+  .tier-label::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  .q-block {
+    margin-bottom: 28px; padding: 20px 24px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 4px; transition: border-color 0.2s;
+  }
+  .q-block:focus-within { border-color: var(--border-active); }
+  .q-block.answered { border-color: rgba(179,136,255,0.2); }
+  .q-block.answered .q-number::after { content: ' ✓'; color: var(--accent4); }
+
+  .q-number { font-family: var(--mono); font-size: 10px; color: var(--text-dim); margin-bottom: 6px; letter-spacing: 1px; }
+  .q-text { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 16px; line-height: 1.5; }
+  .q-hint { font-family: var(--mono); font-size: 11px; color: var(--text-muted); margin-bottom: 16px; margin-top: -10px; }
+
+  .options { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+
+  .opt {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 12px; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 3px;
+    cursor: pointer; font-family: var(--mono); font-size: 12px;
+    color: var(--text-muted); transition: all 0.15s; user-select: none;
+  }
+  .opt:hover { border-color: var(--border-active); color: var(--text); }
+  .opt.selected { border-color: var(--accent4); color: var(--accent4); background: rgba(179,136,255,0.05); }
+  .opt input { display: none; }
+  .opt-dot { width: 8px; height: 8px; border-radius: 50%; border: 1px solid currentColor; flex-shrink: 0; transition: background 0.15s; }
+  .opt.selected .opt-dot { background: var(--accent4); }
+
+  .opt.multi.selected { border-color: var(--accent2); color: var(--accent2); background: rgba(0,204,255,0.05); }
+  .opt.multi.selected .opt-dot { background: var(--accent2); border-color: var(--accent2); border-radius: 2px; }
+
+  .custom-wrap { margin-top: 10px; }
+  .custom-label { font-family: var(--mono); font-size: 10px; color: var(--text-dim); margin-bottom: 6px; letter-spacing: 1px; }
+  .custom-input {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 3px; padding: 8px 12px; font-family: var(--mono);
+    font-size: 12px; color: var(--text); outline: none;
+    transition: border-color 0.15s; resize: vertical; min-height: 36px;
+  }
+  .custom-input:focus { border-color: var(--border-active); }
+  .custom-input::placeholder { color: var(--text-dim); }
+
+  /* Import block */
+  .import-block {
+    margin-bottom: 40px;
+    padding: 20px 24px;
+    background: var(--surface);
+    border: 1px dashed var(--accent4);
+    border-radius: 4px;
+  }
+
+  .import-block.has-data {
+    border-style: solid;
+    border-color: rgba(179,136,255,0.4);
+    background: rgba(179,136,255,0.03);
+  }
+
+  .import-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent4);
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+
+  .import-sub {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+  }
+
+  .import-textarea {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 3px; padding: 8px 12px; font-family: var(--mono);
+    font-size: 11px; color: var(--text); outline: none;
+    transition: border-color 0.15s; resize: vertical; min-height: 80px;
+  }
+  .import-textarea:focus { border-color: var(--accent4); }
+  .import-textarea::placeholder { color: var(--text-dim); }
+
+  .btn-import {
+    margin-top: 10px;
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+    padding: 7px 16px; background: transparent;
+    color: var(--accent4); border: 1px solid var(--accent4);
+    border-radius: 3px; cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .btn-import:hover { background: rgba(179,136,255,0.1); }
+
+  .import-status {
+    margin-top: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    display: none;
+  }
+
+  /* Tier gate */
+  .tier2-gate {
+    margin: 40px 0 32px; padding: 24px;
+    border: 1px dashed var(--border); border-radius: 4px; text-align: center;
+  }
+  .tier2-gate.unlocked { border-style: solid; border-color: rgba(0,204,255,0.3); background: rgba(0,204,255,0.03); }
+  .gate-title { font-family: var(--mono); font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
+  .gate-title.unlocked { color: var(--accent2); }
+  .gate-sub { font-family: var(--mono); font-size: 11px; color: var(--text-dim); }
+  .gate-sub.unlocked { color: var(--text-muted); }
+
+  #tier2-section { opacity: 0; max-height: 0; overflow: hidden; transition: opacity 0.5s ease, max-height 0.8s ease; }
+  #tier2-section.visible { opacity: 1; max-height: 9999px; }
+
+  .divider { height: 1px; background: var(--border); margin: 36px 0; }
+
+  .generate-wrap { margin-top: 40px; display: flex; align-items: center; gap: 16px; }
+
+  .btn-generate {
+    font-family: var(--mono); font-size: 13px; font-weight: 700;
+    padding: 12px 28px; background: var(--accent4); color: #000;
+    border: none; border-radius: 3px; cursor: pointer;
+    letter-spacing: 0.5px; transition: opacity 0.15s, transform 0.1s;
+  }
+  .btn-generate:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn-generate:active { transform: translateY(0); }
+
+  .btn-secondary {
+    font-family: var(--mono); font-size: 11px; color: var(--text-muted);
+    background: none; border: 1px solid var(--border); border-radius: 3px;
+    padding: 8px 16px; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+  }
+  .btn-secondary:hover { color: var(--text); border-color: var(--border-active); }
+
+  #output-section { margin-top: 48px; display: none; }
+  #output-section.visible { display: block; }
+
+  .output-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .output-title { font-family: var(--mono); font-size: 12px; color: var(--accent4); letter-spacing: 1px; }
+
+  .btn-copy {
+    font-family: var(--mono); font-size: 11px; color: var(--text-muted);
+    background: none; border: 1px solid var(--border); border-radius: 3px;
+    padding: 5px 12px; cursor: pointer; transition: all 0.15s;
+  }
+  .btn-copy:hover { color: var(--accent4); border-color: var(--accent4); }
+  .btn-copy.copied { color: var(--accent); border-color: var(--accent); }
+
+  .output-block {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
+    padding: 24px; font-family: var(--mono); font-size: 12px;
+    line-height: 1.8; color: var(--text); white-space: pre-wrap; word-break: break-word;
+  }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="header">
+    <div class="header-top">
+      <span class="prompt-char">$</span>
+      <h1>Ht<span>ALR</span> Instruction Builder</h1>
+    </div>
+    <div class="header-sub">// human to agentic language rosetta — universal instruction generator</div>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-meta">
+      <span id="progress-label">0 / 10 answered</span>
+      <span id="progress-pct">0%</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progress-fill"></div>
+    </div>
+  </div>
+
+  <!-- IMPORT SHORTCUT -->
+  <div class="tier-label t0">Import — optional shortcut</div>
+
+  <div class="import-block" id="import-block">
+    <div class="import-title">// PASTE EXISTING HTALR PROFILE BLOCK</div>
+    <div class="import-sub">Already ran the profile builder? Paste your generated profile block here to pre-fill the form. Or skip this and fill manually below.</div>
+    <textarea class="import-textarea" id="import-input" placeholder="# HtALR User Profile&#10;## Tier 2 — Deep Profile v1.0&#10;&#10;[PROFILE: default]&#10;..."></textarea>
+    <button class="btn-import" onclick="parseImport()">parse profile</button>
+    <div class="import-status" id="import-status">✓ profile parsed — fields pre-filled below</div>
+  </div>
+
+  <!-- TIER 1 — CORE BEHAVIOUR -->
+  <div class="tier-label t1">Tier 1 — Core Behaviour</div>
+
+  <div class="q-block" id="q1">
+    <div class="q-number">Q01 // REGISTER</div>
+    <div class="q-text">How should the agent communicate with you?</div>
+    <div class="options" data-q="q1" data-type="single">
+      <label class="opt"><input type="radio" name="q1" value="Direct and brief"><span class="opt-dot"></span>Direct and brief</label>
+      <label class="opt"><input type="radio" name="q1" value="Casual and conversational"><span class="opt-dot"></span>Casual and conversational</label>
+      <label class="opt"><input type="radio" name="q1" value="Formal and precise"><span class="opt-dot"></span>Formal and precise</label>
+      <label class="opt"><input type="radio" name="q1" value="Collaborative — thinks out loud"><span class="opt-dot"></span>Collaborative</label>
+      <label class="opt"><input type="radio" name="q1" value="Executive — decisions only"><span class="opt-dot"></span>Executive</label>
+    </div>
+    <div class="custom-wrap">
+      <div class="custom-label">// CUSTOM OR PASTE VOICE SAMPLE</div>
+      <textarea class="custom-input" placeholder="Describe or paste a voice sample..." rows="2" data-q="q1-custom"></textarea>
+    </div>
+  </div>
+
+  <div class="q-block" id="q2">
+    <div class="q-number">Q02 // OUTPUT FORMAT</div>
+    <div class="q-text">Default output format?</div>
+    <div class="options" data-q="q2" data-type="single">
+      <label class="opt"><input type="radio" name="q2" value="Markdown"><span class="opt-dot"></span>Markdown</label>
+      <label class="opt"><input type="radio" name="q2" value="Plain prose"><span class="opt-dot"></span>Plain prose</label>
+      <label class="opt"><input type="radio" name="q2" value="Code only"><span class="opt-dot"></span>Code only</label>
+      <label class="opt"><input type="radio" name="q2" value="Structured data (JSON/YAML)"><span class="opt-dot"></span>Structured data</label>
+      <label class="opt"><input type="radio" name="q2" value="Tables preferred"><span class="opt-dot"></span>Tables</label>
+    </div>
+    <div class="custom-wrap">
+      <div class="custom-label">// CUSTOM FORMAT</div>
+      <textarea class="custom-input" placeholder="Describe a specific format..." rows="1" data-q="q2-custom"></textarea>
+    </div>
+  </div>
+
+  <div class="q-block" id="q3">
+    <div class="q-number">Q03 // AUTONOMY</div>
+    <div class="q-text">When a query is ambiguous, what should the agent do?</div>
+    <div class="options" data-q="q3" data-type="single">
+      <label class="opt"><input type="radio" name="q3" value="Ask before acting"><span class="opt-dot"></span>Ask before acting</label>
+      <label class="opt"><input type="radio" name="q3" value="Assume and flag assumptions"><span class="opt-dot"></span>Assume and flag</label>
+      <label class="opt"><input type="radio" name="q3" value="Commit and let me course-correct"><span class="opt-dot"></span>Commit, I'll correct</label>
+      <label class="opt"><input type="radio" name="q3" value="Offer 2-3 interpretations first"><span class="opt-dot"></span>Offer interpretations</label>
+    </div>
+    <div class="custom-wrap">
+      <div class="custom-label">// CUSTOM RULE</div>
+      <textarea class="custom-input" placeholder="..." rows="1" data-q="q3-custom"></textarea>
+    </div>
+  </div>
+
+  <div class="q-block" id="q4">
+    <div class="q-number">Q04 // CONSTRAINTS</div>
+    <div class="q-text">Things the agent should never do. (select all that apply)</div>
+    <div class="options" data-q="q4" data-type="multi">
+      <label class="opt multi"><input type="checkbox" name="q4" value="Never use encouragement phrases like 'great question' or 'nice thinking'"><span class="opt-dot"></span>No encouragement phrases</label>
+      <label class="opt multi"><input type="checkbox" name="q4" value="Never restate the question before answering"><span class="opt-dot"></span>Never restate the question</label>
+      <label class="opt multi"><input type="checkbox" name="q4" value="Never add unrequested suggestions or next steps"><span class="opt-dot"></span>No unrequested suggestions</label>
+      <label class="opt multi"><input type="checkbox" name="q4" value="Never use bullet points for prose responses"><span class="opt-dot"></span>No bullets in prose</label>
+      <label class="opt multi"><input type="checkbox" name="q4" value="Never add a closing summary unless asked"><span class="opt-dot"></span>No closing summaries</label>
+      <label class="opt multi"><input type="checkbox" name="q4" value="Never use passive voice"><span class="opt-dot"></span>No passive voice</label>
+      <label class="opt multi"><input type="checkbox" name="q4" value="Never add preamble before answering"><span class="opt-dot"></span>No preamble</label>
+      <label class="opt multi"><input type="checkbox" name="q4" value="Never add postamble or follow-up offers"><span class="opt-dot"></span>No postamble</label>
+    </div>
+    <div class="custom-wrap">
+      <div class="custom-label">// CUSTOM CONSTRAINTS</div>
+      <textarea class="custom-input" placeholder="List anything else that should be locked off..." rows="2" data-q="q4-custom"></textarea>
+    </div>
+  </div>
+
+  <div class="q-block" id="q5">
+    <div class="q-number">Q05 // FAILURE MODE</div>
+    <div class="q-text">When uncertain or at the edge of knowledge?</div>
+    <div class="options" data-q="q5" data-type="single">
+      <label class="opt"><input type="radio" name="q5" value="Ask for clarification"><span class="opt-dot"></span>Ask for clarification</label>
+      <label class="opt"><input type="radio" name="q5" value="Attempt and flag uncertainty inline"><span class="opt-dot"></span>Attempt and flag inline</label>
+      <label class="opt"><input type="radio" name="q5" value="Attempt silently — I will catch errors"><span class="opt-dot"></span>Attempt silently</label>
+      <label class="opt"><input type="radio" name="q5" value="Surface the uncertainty as a question first"><span class="opt-dot"></span>Surface as question first</label>
+    </div>
+    <div class="custom-wrap">
+      <div class="custom-label">// CUSTOM RULE</div>
+      <textarea class="custom-input" placeholder="..." rows="1" data-q="q5-custom"></textarea>
+    </div>
+  </div>
+
+  <!-- TIER 2 GATE -->
+  <div class="tier2-gate" id="tier2-gate">
+    <div class="gate-title" id="gate-title">// TIER 2 LOCKED — complete Tier 1 to unlock</div>
+    <div class="gate-sub" id="gate-sub">5 more questions covering depth, persona, context, and flags</div>
+  </div>
+
+  <!-- TIER 2 — DEPTH SETTINGS -->
+  <div id="tier2-section">
+    <div class="tier-label t2">Tier 2 — Depth Settings</div>
+
+    <div class="q-block" id="q6">
+      <div class="q-number">Q06 // EXPLANATION DENSITY</div>
+      <div class="q-text">How much reasoning do you want to see?</div>
+      <div class="options" data-q="q6" data-type="single">
+        <label class="opt"><input type="radio" name="q6" value="Conclusion only — no rationale"><span class="opt-dot"></span>Conclusion only</label>
+        <label class="opt"><input type="radio" name="q6" value="Conclusion with one-line rationale"><span class="opt-dot"></span>Conclusion + one-line why</label>
+        <label class="opt"><input type="radio" name="q6" value="Full reasoning shown"><span class="opt-dot"></span>Full reasoning shown</label>
+        <label class="opt"><input type="radio" name="q6" value="Conclusion by default — full reasoning on request"><span class="opt-dot"></span>On demand</label>
+      </div>
+      <div class="custom-wrap">
+        <div class="custom-label">// CUSTOM RULE</div>
+        <textarea class="custom-input" placeholder="..." rows="1" data-q="q6-custom"></textarea>
+      </div>
+    </div>
+
+    <div class="q-block" id="q7">
+      <div class="q-number">Q07 // INFERENCE DEPTH</div>
+      <div class="q-text">How much should the agent read between the lines?</div>
+      <div class="options" data-q="q7" data-type="single">
+        <label class="opt"><input type="radio" name="q7" value="Literal — execute exactly what was asked, no more"><span class="opt-dot"></span>Literal</label>
+        <label class="opt"><input type="radio" name="q7" value="Contextual — fill obvious gaps using conversation context"><span class="opt-dot"></span>Contextual</label>
+        <label class="opt"><input type="radio" name="q7" value="Inferential — optimise for inferred goal, not surface request"><span class="opt-dot"></span>Inferential</label>
+        <label class="opt"><input type="radio" name="q7" value="Anticipatory — surface what comes next unprompted"><span class="opt-dot"></span>Anticipatory</label>
+      </div>
+      <div class="custom-wrap">
+        <div class="custom-label">// CUSTOM RULE</div>
+        <textarea class="custom-input" placeholder="..." rows="1" data-q="q7-custom"></textarea>
+      </div>
+    </div>
+
+    <div class="q-block" id="q8">
+      <div class="q-number">Q08 // PERSONA</div>
+      <div class="q-text">Should the agent mirror a specific voice?</div>
+      <div class="options" data-q="q8" data-type="single">
+        <label class="opt"><input type="radio" name="q8" value="No persona — use default register"><span class="opt-dot"></span>No persona</label>
+        <label class="opt"><input type="radio" name="q8" value="Mirror the user's own writing style from conversation"><span class="opt-dot"></span>Mirror my writing style</label>
+        <label class="opt"><input type="radio" name="q8" value="Custom persona (described below)"><span class="opt-dot"></span>Custom persona</label>
+      </div>
+      <div class="custom-wrap">
+        <div class="custom-label">// PASTE SAMPLE TEXT OR DESCRIBE THE PERSONA</div>
+        <textarea class="custom-input" placeholder="Paste a writing sample or describe the voice..." rows="3" data-q="q8-custom"></textarea>
+      </div>
+    </div>
+
+    <div class="q-block" id="q9">
+      <div class="q-number">Q09 // CONTEXT</div>
+      <div class="q-text">What is this instruction set being used for? Give the agent context on who you are and what you do.</div>
+      <div class="custom-wrap">
+        <div class="custom-label">// ROLE / DOMAIN / USE CASE</div>
+        <textarea class="custom-input" placeholder="e.g. 'I am a security engineer. I primarily use AI for threat modelling, writing documentation, and code review. I work in a fast-paced startup environment and value brevity over completeness.'..." rows="4" data-q="q9-context"></textarea>
+      </div>
+    </div>
+
+    <div class="q-block" id="q10">
+      <div class="q-number">Q10 // FLAGS</div>
+      <div class="q-text">Include HtALR flag conventions in the instruction set? These let you shift agent behaviour per query using shorthand modifiers.</div>
+      <div class="options" data-q="q10" data-type="single">
+        <label class="opt"><input type="radio" name="q10" value="include-all"><span class="opt-dot"></span>Include full flag set</label>
+        <label class="opt"><input type="radio" name="q10" value="include-core"><span class="opt-dot"></span>Core flags only (-lfg, -q, -v, -halp)</label>
+        <label class="opt"><input type="radio" name="q10" value="exclude"><span class="opt-dot"></span>Exclude flags</label>
+      </div>
+      <div class="custom-wrap">
+        <div class="custom-label">// CUSTOM FLAGS TO ADD</div>
+        <textarea class="custom-input" placeholder="e.g. '-review = review this for errors before responding'..." rows="2" data-q="q10-custom"></textarea>
+      </div>
+    </div>
+
+  </div><!-- /tier2-section -->
+
+  <div class="generate-wrap">
+    <button class="btn-generate" onclick="generateInstructions()">generate instructions</button>
+    <button class="btn-secondary" onclick="resetForm()">reset</button>
+  </div>
+
+  <div id="output-section">
+    <div class="divider"></div>
+    <div class="output-header">
+      <span class="output-title">// GENERATED INSTRUCTION BLOCK</span>
+      <button class="btn-copy" id="btn-copy" onclick="copyOutput()">copy</button>
+    </div>
+    <div class="output-block" id="output-block"></div>
+  </div>
+
+</div>
+
+<script>
+const TOTAL = 10;
+var answered = new Set();
+
+function getVal(q) {
+  var sel = document.querySelector('input[name="' + q + '"]:checked');
+  return sel ? sel.value : null;
+}
+
+function getMulti(q) {
+  return Array.from(document.querySelectorAll('input[name="' + q + '"]:checked')).map(function(i) { return i.value; });
+}
+
+function getCustom(key) {
+  var el = document.querySelector('[data-q="' + key + '"]');
+  return el ? el.value.trim() : '';
+}
+
+function setCustom(key, val) {
+  var el = document.querySelector('[data-q="' + key + '"]');
+  if (el) el.value = val;
+}
+
+function selectRadio(name, value) {
+  var inputs = document.querySelectorAll('input[name="' + name + '"]');
+  inputs.forEach(function(input) {
+    if (input.value === value) {
+      input.checked = true;
+      var opt = input.closest('.opt');
+      if (opt) {
+        var container = opt.closest('.options');
+        if (container) container.querySelectorAll('.opt').forEach(function(o) { o.classList.remove('selected'); });
+        opt.classList.add('selected');
+      }
+    }
+  });
+}
+
+function updateProgress() {
+  var pct = Math.round((answered.size / TOTAL) * 100);
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-label').textContent = answered.size + ' / ' + TOTAL + ' answered';
+  document.getElementById('progress-pct').textContent = pct + '%';
+  answered.forEach(function(q) {
+    var block = document.getElementById(q);
+    if (block) block.classList.add('answered');
+  });
+  checkTier2Gate();
+}
+
+function checkTier2Gate() {
+  var tier1qs = ['q1','q2','q3','q4','q5'];
+  var tier1done = tier1qs.every(function(q) { return answered.has(q); });
+  var gate = document.getElementById('tier2-gate');
+  var title = document.getElementById('gate-title');
+  var sub = document.getElementById('gate-sub');
+  var section = document.getElementById('tier2-section');
+  if (tier1done) {
+    gate.classList.add('unlocked');
+    title.classList.add('unlocked');
+    title.textContent = '// TIER 2 UNLOCKED';
+    sub.classList.add('unlocked');
+    sub.textContent = 'Depth settings active — 5 more questions below';
+    section.classList.add('visible');
+  }
+}
+
+document.querySelectorAll('.options').forEach(function(container) {
+  var qId = container.dataset.q;
+  var type = container.dataset.type;
+  container.querySelectorAll('.opt').forEach(function(opt) {
+    opt.addEventListener('click', function() {
+      var input = opt.querySelector('input');
+      if (type === 'single') {
+        container.querySelectorAll('.opt').forEach(function(o) { o.classList.remove('selected'); });
+        input.checked = true;
+        opt.classList.add('selected');
+        answered.add(qId);
+      } else {
+        input.checked = !input.checked;
+        opt.classList.toggle('selected', input.checked);
+        var anyChecked = container.querySelectorAll('input:checked').length > 0;
+        if (anyChecked) answered.add(qId);
+        else answered.delete(qId);
+      }
+      updateProgress();
+    });
+  });
+});
+
+document.querySelectorAll('.custom-input').forEach(function(input) {
+  input.addEventListener('input', function() {
+    var key = input.dataset.q;
+    if (!key) return;
+    var qNum = key.match(/q\d+/);
+    if (qNum && input.value.trim()) {
+      answered.add(qNum[0]);
+      var block = document.getElementById(qNum[0]);
+      if (block) block.classList.add('answered');
+      updateProgress();
+    }
+  });
+});
+
+// Parse imported profile block
+function parseImport() {
+  var raw = document.getElementById('import-input').value.trim();
+  if (!raw) return;
+
+  var get = function(label) {
+    var re = new RegExp('- ' + label + ':\\s*(.+)', 'i');
+    var m = raw.match(re);
+    return m ? m[1].trim() : null;
+  };
+
+  var tone = get('Tone');
+  if (tone) {
+    if (tone.match(/direct|brief/i)) selectRadio('q1', 'Direct and brief');
+    else if (tone.match(/casual/i)) selectRadio('q1', 'Casual and conversational');
+    else if (tone.match(/formal/i)) selectRadio('q1', 'Formal and precise');
+    else if (tone.match(/collaborat/i)) selectRadio('q1', 'Collaborative — thinks out loud');
+    else if (tone.match(/execut/i)) selectRadio('q1', 'Executive — decisions only');
+    else setCustom('q1-custom', tone);
+    answered.add('q1');
+  }
+
+  var fmt = get('Default format');
+  if (fmt) {
+    if (fmt.match(/markdown/i)) selectRadio('q2', 'Markdown');
+    else if (fmt.match(/prose/i)) selectRadio('q2', 'Plain prose');
+    else if (fmt.match(/code/i)) selectRadio('q2', 'Code only');
+    else if (fmt.match(/json|yaml|structured/i)) selectRadio('q2', 'Structured data (JSON/YAML)');
+    else if (fmt.match(/table/i)) selectRadio('q2', 'Tables preferred');
+    else setCustom('q2-custom', fmt);
+    answered.add('q2');
+  }
+
+  var auto = get('Default');
+  if (auto) {
+    if (auto.match(/ask before/i)) selectRadio('q3', 'Ask before acting');
+    else if (auto.match(/assume/i)) selectRadio('q3', 'Assume and flag assumptions');
+    else if (auto.match(/commit/i)) selectRadio('q3', 'Commit and let me course-correct');
+    else if (auto.match(/offer|interpret/i)) selectRadio('q3', 'Offer 2-3 interpretations first');
+    else setCustom('q3-custom', auto);
+    answered.add('q3');
+  }
+
+  var fail = get('Failure mode') || get('failure mode');
+  if (fail) {
+    if (fail.match(/ask for clarif/i)) selectRadio('q5', 'Ask for clarification');
+    else if (fail.match(/attempt and flag/i)) selectRadio('q5', 'Attempt and flag uncertainty inline');
+    else if (fail.match(/silently/i)) selectRadio('q5', 'Attempt silently — I will catch errors');
+    else if (fail.match(/surface/i)) selectRadio('q5', 'Surface the uncertainty as a question first');
+    else setCustom('q5-custom', fail);
+    answered.add('q5');
+  }
+
+  var explanation = get('Explanation density') || get('explanation density');
+  if (explanation) {
+    if (explanation.match(/conclusion only/i)) selectRadio('q6', 'Conclusion only — no rationale');
+    else if (explanation.match(/one.line/i)) selectRadio('q6', 'Conclusion with one-line rationale');
+    else if (explanation.match(/full working|full reasoning/i)) selectRadio('q6', 'Full reasoning shown');
+    else if (explanation.match(/on.demand|trigger/i)) selectRadio('q6', 'Conclusion by default — full reasoning on request');
+    answered.add('q6');
+  }
+
+  var inference = get('Inference depth') || get('inference depth');
+  if (inference) {
+    if (inference.match(/literal/i)) selectRadio('q7', 'Literal — execute exactly what was asked, no more');
+    else if (inference.match(/contextual/i)) selectRadio('q7', 'Contextual — fill obvious gaps using conversation context');
+    else if (inference.match(/inferential/i)) selectRadio('q7', 'Inferential — optimise for inferred goal, not surface request');
+    else if (inference.match(/anticipat/i)) selectRadio('q7', 'Anticipatory — surface what comes next unprompted');
+    answered.add('q7');
+  }
+
+  var persona = get('Persona') || get('persona');
+  if (persona) {
+    if (persona.match(/no persona|default/i)) selectRadio('q8', 'No persona — use default register');
+    else if (persona.match(/mirror/i)) selectRadio('q8', 'Mirror the user\'s own writing style from conversation');
+    else { selectRadio('q8', 'Custom persona (described below)'); setCustom('q8-custom', persona); }
+    answered.add('q8');
+  }
+
+  // Parse constraints from profile
+  var constraintLines = raw.match(/### Constraints\n([\s\S]*?)(?:\n###|\n---)/);
+  if (constraintLines) {
+    var lines = constraintLines[1].split('\n').filter(function(l) { return l.match(/^-/); });
+    lines.forEach(function(line) {
+      var val = line.replace(/^-\s*/, '').trim();
+      var checkboxes = document.querySelectorAll('input[name="q4"]');
+      checkboxes.forEach(function(cb) {
+        if (cb.value.toLowerCase().includes(val.toLowerCase().substring(0,20))) {
+          cb.checked = true;
+          var opt = cb.closest('.opt');
+          if (opt) opt.classList.add('selected');
+        }
+      });
+    });
+    if (document.querySelectorAll('input[name="q4"]:checked').length > 0) answered.add('q4');
+  }
+
+  document.getElementById('import-block').classList.add('has-data');
+  var status = document.getElementById('import-status');
+  status.style.display = 'block';
+  status.textContent = '✓ profile parsed — fields pre-filled below';
+
+  updateProgress();
+}
+
+function generateInstructions() {
+  var register = getCustom('q1-custom') || getVal('q1') || 'direct and brief';
+  var format = getCustom('q2-custom') || getVal('q2') || 'markdown';
+  var autonomy = getCustom('q3-custom') || getVal('q3') || 'ask before acting when ambiguous';
+  var constraints = getMulti('q4').concat([getCustom('q4-custom')]).filter(Boolean);
+  var failMode = getCustom('q5-custom') || getVal('q5') || 'attempt and flag uncertainty inline';
+  var explanation = getCustom('q6-custom') || getVal('q6') || '';
+  var inference = getCustom('q7-custom') || getVal('q7') || '';
+  var persona = getCustom('q8-custom') || getVal('q8') || '';
+  var context = getCustom('q9-context');
+  var flagMode = getVal('q10') || 'exclude';
+  var customFlags = getCustom('q10-custom');
+  var isTier2 = answered.size > 5;
+
+  var now = new Date();
+  var dateStr = now.toISOString().split('T')[0];
+
+  var out = '# Agent Instructions\n';
+  out += '## HtALR Universal Profile — generated ' + dateStr + '\n\n';
+  out += '---\n\n';
+
+  if (context) {
+    out += '## Context\n\n';
+    out += context + '\n\n';
+    out += '---\n\n';
+  }
+
+  out += '## Communication\n\n';
+  out += 'Tone and register: ' + register + '\n\n';
+
+  if (isTier2 && persona && persona !== 'No persona — use default register') {
+    out += 'Persona: ' + persona + '\n\n';
+  }
+
+  out += '## Output\n\n';
+  out += 'Default format: ' + format + '\n\n';
+  out += 'When producing code: declare the language and format before the code block begins.\n\n';
+
+  out += '## Autonomy\n\n';
+  out += 'When a query is ambiguous: ' + autonomy + '\n\n';
+
+  if (isTier2 && inference) {
+    out += 'Inference depth: ' + inference + '\n\n';
+  }
+
+  if (constraints.length) {
+    out += '## Constraints\n\n';
+    out += 'Never do any of the following:\n\n';
+    constraints.forEach(function(c) { out += '- ' + c + '\n'; });
+    out += '\n';
+  }
+
+  if (isTier2 && explanation) {
+    out += '## Explanation Density\n\n';
+    out += explanation + '\n\n';
+  }
+
+  out += '## Failure Mode\n\n';
+  out += 'When uncertain or at the edge of knowledge: ' + failMode + '\n\n';
+
+  if (flagMode !== 'exclude') {
+    out += '---\n\n';
+    out += '## Flags\n\n';
+    out += 'The following shorthand flags can be appended to any query to modify behaviour for that response.\n\n';
+    out += '| Flag | Behaviour |\n';
+    out += '|------|-----------|\n';
+    out += '| `-lfg` | Execute without clarifying questions — course-correct on output |\n';
+    out += '| `-q` | Quiet mode — conclusion only, no rationale |\n';
+    out += '| `-v` | Verbose mode — full reasoning and working shown |\n';
+    out += '| `-halp` | Options mode — return 2-3 approaches before committing |\n';
+    if (flagMode === 'include-all') {
+      out += '| `-yolo` | Maximum speed — all responses in millennial speak |\n';
+      out += '| `-o [format]` | Override output format e.g. `-o json`, `-o prose`, `-o table` |\n';
+      out += '| `-d` | Draft mode — flag confidence and assumptions inline |\n';
+      out += '| `-obey` | Strict mode — literal execution only, no inference |\n';
+      out += '| `-toboldlygo` | Discovery mode — explore possibility space, surface options, capture reactions. Success = clarity gained, not output delivered. |\n';
+      out += '| `-nevermore` | Poetry mode — all outputs phrased as poetry or prose |\n';
+    }
+    if (customFlags) {
+      var lines = customFlags.split('\n').filter(function(l) { return l.trim(); });
+      lines.forEach(function(line) {
+        var parts = line.split('=');
+        if (parts.length >= 2) {
+          out += '| `' + parts[0].trim() + '` | ' + parts.slice(1).join('=').trim() + ' |\n';
+        } else {
+          out += '| ' + line + ' |\n';
+        }
+      });
+    }
+    out += '\nFlags are stackable: `-lfg -q` = execute silently, conclusion only.\n\n';
+  }
+
+  out += '---\n\n';
+  out += '## How to Use These Instructions\n\n';
+  out += 'Paste this block into the system prompt or custom instructions field of any AI assistant.\n';
+  out += 'These instructions define a baseline — individual queries can override them using flags or plain language.\n';
+  out += 'To update these instructions, revise the relevant section and re-paste.\n\n';
+  out += '---\n\n';
+  out += '*HtALR Universal Instruction Block*\n';
+  out += '*Project: human to agentic language rosetta*\n';
+
+  document.getElementById('output-block').textContent = out;
+  document.getElementById('output-section').classList.add('visible');
+  document.getElementById('output-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function copyOutput() {
+  var text = document.getElementById('output-block').textContent;
+  navigator.clipboard.writeText(text).then(function() {
+    var btn = document.getElementById('btn-copy');
+    btn.textContent = '✓ copied';
+    btn.classList.add('copied');
+    setTimeout(function() { btn.textContent = 'copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+function resetForm() {
+  document.querySelectorAll('input[type="radio"], input[type="checkbox"]').forEach(function(i) { i.checked = false; });
+  document.querySelectorAll('.opt').forEach(function(o) { o.classList.remove('selected'); });
+  document.querySelectorAll('.custom-input, .import-textarea').forEach(function(i) { i.value = ''; });
+  document.querySelectorAll('.q-block').forEach(function(b) { b.classList.remove('answered'); });
+  document.getElementById('tier2-section').classList.remove('visible');
+  document.getElementById('tier2-gate').classList.remove('unlocked');
+  document.getElementById('gate-title').classList.remove('unlocked');
+  document.getElementById('gate-title').textContent = '// TIER 2 LOCKED — complete Tier 1 to unlock';
+  document.getElementById('gate-sub').classList.remove('unlocked');
+  document.getElementById('gate-sub').textContent = '5 more questions covering depth, persona, context, and flags';
+  document.getElementById('import-block').classList.remove('has-data');
+  document.getElementById('import-status').style.display = 'none';
+  document.getElementById('output-section').classList.remove('visible');
+  answered.clear();
+  updateProgress();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+</body>
+</html>
