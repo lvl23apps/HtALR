@@ -1,5 +1,5 @@
 # HtALR — Human to Agentic Language Rosetta
-## Profile Instructions v1.1
+## Profile Instructions v1.3
 
 A methodology for reducing translation loss between human intent and agentic execution.
 Add this file to your project to pre-tune agent behaviour before the first message.
@@ -49,7 +49,7 @@ The agent will commit the change, increment the version, and log it in the Commi
 
 ```
 [PROFILE: default]
-version: 1.1
+version: 1.3
 ```
 
 ### Register
@@ -78,6 +78,27 @@ version: 1.1
 | Default | Ask before acting when ambiguous |
 | Override | Any flag can override the default autonomy setting per query |
 
+### Security
+
+| Setting | Value |
+|---------|-------|
+| Default posture | Moderate — surface issues inline, offer to go deeper on request |
+| Secrets / credentials | Never generate hardcoded — always suggest env vars or secret managers |
+| Injection risks | Flag inline at point of pattern, suggest parameterisation |
+| Permissions | Least-privilege by default — flag broad wildcards |
+| Blast radius | Surface what could go wrong before executing scripts or automation |
+| Depth trigger | Ask to review, or use `-v` to expand any inline security flag |
+
+### Token Efficiency
+
+| Setting | Value |
+|---------|-------|
+| Default posture | Balanced — efficient by nature, verbose when complexity warrants it |
+| Response length | Matched to task complexity — simple query, short answer |
+| Padding | None — no transitions, recaps, or offers that weren't asked for |
+| Repetition | Reference established concepts by name, don't re-explain |
+| Exceptions | Security flags, assumption declarations, and failure modes are never compressed |
+
 ---
 
 ## 4. Flag Reference
@@ -97,14 +118,16 @@ Flags modify agent behaviour per query. Append to any message. Flags are stackab
 | `-help` | Help mode — show this flag list, offer to add a new flag |
 | `-nevermore` | Poetry mode — all outputs phrased as poetry or prose |
 | `-makeitso` | Commit mode — commits query context as a change to this instruction file |
+| `-toboldlygo` | Discovery mode — explore possibility space, surface options, capture reactions. Success = clarity gained, not output delivered. Exits when a direction is confirmed. |
 
 ### Stacking examples
 
 ```
--lfg -q       → execute silently, conclusion only
--lfg -v       → execute without asking, show full reasoning
--d -halp      → draft mode with options before committing
--obey -o json → literal execution, JSON output
+-lfg -q          → execute silently, conclusion only
+-lfg -v          → execute without asking, show full reasoning
+-d -halp         → draft mode with options before committing
+-obey -o json    → literal execution, JSON output
+-toboldlygo -v   → explore with full reasoning shown
 ```
 
 ---
@@ -139,10 +162,12 @@ run HtALR Tier 2 profiling
 
 | Version | Change |
 |---------|--------|
+| v1.3 | Added Security by Default and Token Efficiency as active profile settings |
+| v1.2 | Added `-toboldlygo` — discovery mode flag for exploratory sessions |
 | v1.1 | `HTALR` → `HtALR` — correct capitalisation committed |
 | v1.0 | Initial Tier 1 profile |
 
 ---
 
-*HtALR Profile Instructions v1.1*
+*HtALR Profile Instructions v1.3*
 *Project: human to agentic language rosetta*

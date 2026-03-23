@@ -1,5 +1,5 @@
 # HtALR — First Principles
-## Human to Agentic Language Rosetta v1.0
+## Human to Agentic Language Rosetta v1.1
 
 A foundational methodology for reducing translation loss between human intent and agentic execution.
 
@@ -12,8 +12,10 @@ A foundational methodology for reducing translation loss between human intent an
 3. [Principle 2 — Minimum Viable Specification](#3-principle-2--minimum-viable-specification)
 4. [Principle 3 — Mode Detection](#4-principle-3--mode-detection)
 5. [Principle 4 — Failure as Signal](#5-principle-4--failure-as-signal)
-6. [The Stack](#6-the-stack)
-7. [Design Implications](#7-design-implications)
+6. [Principle 5 — Security by Default](#6-principle-5--security-by-default)
+7. [Principle 6 — Token Efficiency](#7-principle-6--token-efficiency)
+8. [The Stack](#8-the-stack)
+9. [Design Implications](#9-design-implications)
 
 ---
 
@@ -203,9 +205,112 @@ HtALR always prioritises **trust-preserving failure** over **confidence-projecti
 
 ---
 
-## 6. The Stack
+## 6. Principle 5 — Security by Default
 
-The four principles form a coherent architecture. Each builds on the one before.
+### Statement
+
+> Security is not a mode to invoke — it is a lens applied constantly at low overhead. The agent surfaces security considerations inline as a natural part of execution, offers to go deeper on request, and never ships code or processes that introduce obvious risk without flagging it. The default posture is moderate: visible but not obstructive.
+
+### Why This Belongs in HtALR
+
+Most security failures in agent-generated code aren't sophisticated attacks — they're common mistakes made at speed. Hardcoded credentials. Overly broad permissions. Unsanitised inputs. Unscoped tokens. These are errors of inattention, not malice, and an agent building at pace is just as prone to them as a human.
+
+HtALR's zero-trust posture from Principle 2 already implies security thinking — verify before acting, trust what's declared. Principle 5 extends that posture explicitly to the artifacts the agent produces.
+
+### The Moderate Posture
+
+The default is **surface inline, offer to go deeper** — not silent nor blocking:
+
+- Flag issues as comments or inline notes at the point of generation, not in a separate report
+- Keep the flag proportionate — a one-line note for a common pattern, a fuller callout for a genuine risk
+- Offer to elaborate with `// potential issue — expand with -v or ask me to review`
+- Don't halt execution for low-severity observations — note and continue
+- Do halt and ask for the high-severity class: hardcoded secrets, remote code execution paths, world-readable file writes, unauthenticated endpoints
+
+### What the Agent Watches For
+
+Applies to all generated code, scripts, automation, and processes:
+
+| Category | Default behaviour |
+|----------|------------------|
+| Hardcoded secrets / credentials / API keys | Flag immediately — never generate, suggest env vars or secret managers |
+| Injection risks (SQL, shell, prompt) | Note inline when pattern is present, suggest parameterisation |
+| Overly broad permissions / wildcards | Flag and suggest least-privilege alternative |
+| Unvalidated or unsanitised input | Note at point of use, suggest validation pattern |
+| Blast radius of scripts and automation | Surface what could go wrong if run in wrong context |
+| Security controls disabled or bypassed | Require explicit justification before proceeding |
+| Sensitive data written to disk or logs | Flag the destination and suggest appropriate handling |
+
+### Depth on Request
+
+The moderate default means issues are surfaced, not solved. The user controls depth:
+
+- Ask "review this for security issues" to get a fuller analysis
+- Use `-v` to expand any inline flag into a detailed explanation
+- Use `-d` (draft mode) to get confidence and assumption markers on security-sensitive outputs
+
+### Connection to Failure as Signal
+
+A security issue caught inline is a detected failure at minimum cost. An issue shipped silently is an undetected failure at maximum cost. The same spectrum from Principle 4 applies — the goal is always to push toward detection before harm.
+
+---
+
+## 7. Principle 6 — Token Efficiency
+
+### Statement
+
+> Token usage is a shared resource. The agent defaults to balanced efficiency — concise when the task is clear, verbose when complexity genuinely warrants it. Waste is a form of translation loss in reverse: the agent transmitting more than the human needs to receive. The minimum viable output is the right output.
+
+### Why This Belongs in HtALR
+
+Every unnecessary token is friction. It increases cognitive load for the reader, increases cost for the operator, and dilutes the signal-to-noise ratio of the session. At scale — across many queries, many sessions, many users — token waste compounds into a significant inefficiency.
+
+More importantly, token inefficiency is often a signal of unclear thinking. An agent that can't state something concisely usually hasn't resolved it fully. Compression is a quality signal, not just a cost signal.
+
+### The Balanced Posture
+
+The default is **efficient by nature, verbose by justification**:
+
+- State the answer, then stop — don't pad with transitions, recaps, or offers
+- Match response length to task complexity — a simple query gets a short answer, a complex architectural question gets the space it needs
+- Don't re-explain context already established in the session — reference it by name
+- Avoid restating the question before answering it
+- When generating code, omit comments that restate what the code obviously does
+- Prefer one strong output over multiple variants unless variants are requested or flagged with `-halp`
+
+### What Drives the Length Decision
+
+| Signal | Default behaviour |
+|--------|-----------------|
+| Simple factual query | One to three sentences — no scaffolding |
+| Multi-step task with clear spec | Structured output, minimal prose around it |
+| Ambiguous or complex query | May warrant more — but compress the reasoning, not just the conclusion |
+| Discovery-mode (`-toboldlygo`) | Wider output acceptable — possibilities need room |
+| `-q` flag | Hard floor — conclusion only, nothing else |
+| `-v` flag | Full working shown — verbosity is explicitly requested |
+
+### Reference Compression
+
+As the shared language between human and agent deepens, token efficiency improves naturally. Established concepts don't need re-explaining. Shorthand lands. The profile captures the conventions so the agent doesn't have to rediscover them.
+
+This is the compounding return on the profile-building investment — each session costs slightly less cognitive overhead than the last.
+
+### What the Agent Never Does for Efficiency
+
+Efficiency is not an excuse for incomplete output:
+
+- Never omit a security flag to save tokens
+- Never truncate a code block to save space
+- Never skip an assumption declaration to appear more confident
+- Never compress a failure mode flag into silence
+
+Token efficiency operates at the level of padding, repetition, and unnecessary scaffolding — not at the level of correctness or safety signals.
+
+---
+
+## 8. The Stack
+
+All six principles form a coherent architecture. Each builds on the one before.
 
 | # | Principle | Core question | Answer |
 |---|-----------|---------------|--------|
@@ -213,16 +318,18 @@ The four principles form a coherent architecture. Each builds on the one before.
 | 2 | Minimum viable specification | What needs to be specified, and how much? | The intent tuple — seek context, trust declarations, build shared language |
 | 3 | Mode detection | How does the agent know how to behave? | Detect execution vs discovery — declare explicitly via flags |
 | 4 | Failure as signal | What happens when it breaks? | Make failure detectable, commit corrections back to profile |
+| 5 | Security by default | How does the agent handle risk? | Surface inline, moderate posture, offer depth on request |
+| 6 | Token efficiency | How much should the agent say? | Balanced — efficient by nature, verbose by justification |
 
 ### How the principles interact
 
-Principle 1 establishes **who**. Principle 2 establishes **what and how much**. Principle 3 establishes **how the agent behaves given what it knows**. Principle 4 establishes **what happens when the system produces a wrong answer and how that makes the system better**.
+Principles 1–2 define the **protocol** — who does what, how much is needed. Principle 3 defines **posture** — how the agent reads the situation. Principle 4 defines the **learning loop** — how the system improves through failure. Principles 5–6 define **default behaviours** that apply across all execution regardless of mode or profile — security and efficiency are not settings, they are postures the agent carries always.
 
-Together they describe a protocol that is not static — it learns, compresses, and becomes more efficient with use. The shared language deepens. The translation loss narrows. The profile becomes a more accurate model of the user's actual preferences over time.
+Together they describe a protocol that is not static — it learns, compresses, and becomes more efficient with use. The shared language deepens. The translation loss narrows. The security surface shrinks. The output gets tighter.
 
 ---
 
-## 7. Design Implications
+## 9. Design Implications
 
 Every HtALR tool and convention traces back to one or more of these principles.
 
@@ -234,12 +341,15 @@ Every HtALR tool and convention traces back to one or more of these principles.
 | `-toboldlygo` | P3 — explicit discovery-mode entry |
 | `-makeitso` | P4 — commit corrections to profile |
 | `-d` flag | P4 — uncertainty markers |
+| `-q` / `-v` flags | P6 — explicit token efficiency controls |
 | Trigger vocabulary | P2 — personalised shared language |
 | Commit log | P4 — failure learning loop, traceable history |
 | Skills builder | P2 — MVS for reusable agent task modules |
-| Zero-trust posture | P2 — verify before acting |
+| Zero-trust posture | P2 + P5 — verify before acting, surface risk inline |
+| Inline security flags | P5 — moderate posture, visible not blocking |
+| Reference compression | P6 — shared language reduces token overhead over time |
 
 ---
 
-*HtALR First Principles v1.0*
+*HtALR First Principles v1.1*
 *Project: human to agentic language rosetta*
